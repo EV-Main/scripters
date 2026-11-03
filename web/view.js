@@ -8,6 +8,8 @@ const THEME_KEY = 'call_scripters:theme';
 const LABEL_NAME = /^[\w-]+$/;
 const COLOR = /^oklch\((\d*\.?\d+) \d*\.?\d+ \d*\.?\d+\)$/; // canonical form; model.js parses the same
 const SWATCHES = [25, 55, 85, 130, 165, 200, 240, 275, 310, 345].flatMap(h => [`oklch(0.62 0.19 ${h})`, `oklch(0.86 0.09 ${h})`]);
+const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+const ARROW_SPEED = 1200; // px/s, about native arrow-repeat speed
 const randomColor = () => `oklch(${(0.5 + Math.random() * 0.4).toFixed(2)} 0.15 ${Math.floor(Math.random() * 360)})`;
 const pristine = document.documentElement.outerHTML;
 const bar = document.getElementById('bar');
@@ -21,6 +23,8 @@ let editing = null;
 let lastClick = { id: null, t: 0 };
 let revealing = null;
 let cards = new Map();
+let held = new Set(); // arrow keys down; scrolled per frame instead of by OS key repeat, which stutters
+let lastFrame = 0;
 let shortcuts = new Map(); // key → bar control it clicks; rebuilt with the bar
 let spacing = Number(localStorage.getItem(SPACING_KEY) ?? 1);
 if (!(spacing > 0)) throw new Error(`corrupt stored spacing: ${localStorage.getItem(SPACING_KEY)}`);
@@ -255,6 +259,15 @@ function newCall() {
 	sel.path = [];
 	render();
 	scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+}
+
+function glide(t) {
+	if (!held.size) return;
+	const step = (ARROW_SPEED * Math.max(0, t - lastFrame)) / 1000; // the frame timestamp can predate the keydown that started us
+	lastFrame = t;
+	const [dx, dy] = [...held].reduce(([x, y], k) => [x + ARROWS[k][0], y + ARROWS[k][1]], [0, 0]);
+	scrollBy(dx * step, dy * step);
+	requestAnimationFrame(glide);
 }
 
 function pill(label) {
@@ -575,6 +588,13 @@ document.addEventListener('keydown', e => {
 		render();
 	} else if (editing || typing || !plain) {
 		return;
+	} else if (e.key in ARROWS) {
+		e.preventDefault();
+		if (!held.size) {
+			lastFrame = performance.now();
+			requestAnimationFrame(glide);
+		}
+		held.add(e.key);
 	} else if (shortcuts.has(e.key)) {
 		shortcuts.get(e.key).click();
 	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
@@ -582,6 +602,8 @@ document.addEventListener('keydown', e => {
 		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));
 	}
 });
+document.addEventListener('keyup', e => held.delete(e.key));
+addEventListener('blur', () => held.clear()); // keyup never arrives once focus leaves the page
 document.addEventListener('click', e => {
 	for (const d of document.querySelectorAll('details.menu[open]')) if (!d.contains(e.target)) d.open = false;
 });
