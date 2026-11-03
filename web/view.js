@@ -101,7 +101,11 @@ function render() {
 			e.stopPropagation();
 			remove(n);
 		});
-		card.append(del, head, el('div', 'body', marked.parse(n.body)));
+		const stick = el('button', 'connect');
+		stick.title = 'drag onto another card to add a response to it';
+		stick.addEventListener('click', e => e.stopPropagation());
+		stick.addEventListener('pointerdown', e => drag(e, n));
+		card.append(del, stick, head, el('div', 'body', marked.parse(n.body)));
 		card.addEventListener('click', () => click(n));
 		canvas.append(card);
 		cards.set(n.id, card);
@@ -519,6 +523,47 @@ function remove(n) {
 	if (!confirm(`Delete "${n.title}"?${responses.length ? ` ${responses.length} response${responses.length > 1 ? 's' : ''} leading to it go too.` : ''}`)) return;
 	const errors = commit(splice([{ start: n.start, end: n.end, text: '' }, ...responses.map(e => ({ start: e.start, end: e.end, text: '' }))]));
 	if (errors) alert(`Cannot delete "${n.title}":\n${errors.map(e => e.msg).join('\n')}`);
+}
+
+function drag(down, n) {
+	if (editing) return;
+	down.preventDefault();
+	down.stopPropagation();
+	const stick = down.currentTarget;
+	stick.setPointerCapture(down.pointerId);
+	const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+	path.classList.add('draft');
+	path.setAttribute('marker-end', 'url(#arrow)');
+	canvas.querySelector(':scope > svg').append(path);
+	const [x0, y0] = canvasAt(down.clientX, down.clientY);
+	let target = null;
+	const done = new AbortController();
+	stick.addEventListener('pointermove', e => {
+		const [x, y] = canvasAt(e.clientX, e.clientY);
+		path.setAttribute('d', `M${x0},${y0} L${x},${y}`);
+		const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.card'); // null past the viewport's edge
+		target?.classList.remove('target');
+		target = over && over !== cards.get(n.id) ? over : null;
+		target?.classList.add('target');
+	}, { signal: done.signal });
+	const finish = drop => () => {
+		done.abort();
+		path.remove();
+		target?.classList.remove('target');
+		if (drop && target) connect(n, graph.nodes.find(m => m.id === target.dataset.id).slot);
+	};
+	stick.addEventListener('pointerup', finish(true), { signal: done.signal });
+	stick.addEventListener('pointercancel', finish(false), { signal: done.signal });
+}
+
+// the new response goes after `n`'s last one, or ends its section
+function connect(n, slot) {
+	const response = `- [TODO](#${slot})`;
+	const exits = graph.edges.filter(e => e.from === n.id);
+	const at = exits.length ? Math.max(...exits.map(e => e.end)) : n.start + md.slice(n.start, n.end).trimEnd().length;
+	const text = !exits.length ? `\n\n${response}` : md[at - 1] === '\n' ? `${response}\n` : `\n${response}`;
+	const errors = commit(splice([{ start: at, end: at, text }]));
+	if (errors) alert(`Cannot link "${n.title}" to #${slot}:\n${errors.map(e => e.msg).join('\n')}`);
 }
 
 function edit(n) {
