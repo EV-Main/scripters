@@ -21,6 +21,7 @@ let editing = null;
 let lastClick = { id: null, t: 0 };
 let revealing = null;
 let cards = new Map();
+let shortcuts = new Map(); // key → bar control it clicks; rebuilt with the bar
 let spacing = Number(localStorage.getItem(SPACING_KEY) ?? 1);
 if (!(spacing > 0)) throw new Error(`corrupt stored spacing: ${localStorage.getItem(SPACING_KEY)}`);
 let theme = localStorage.getItem(THEME_KEY) ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -214,31 +215,39 @@ function renderBar() {
 	const spacingLabel = el('label', 'dim', 'spacing ');
 	spacingLabel.append(range);
 	bar.append(spacingLabel);
-	const button = (text, action, parent = bar) => {
-		const b = el('button', '', text);
+	shortcuts = new Map();
+	const control = (c, hint, key) => {
+		c.title = key ? `${hint}\n[${key}]` : hint;
+		if (key) {
+			assert(!shortcuts.has(key), `two bar controls bound to ${key}`);
+			shortcuts.set(key, c);
+		}
+		return c;
+	};
+	const button = (text, hint, key, action, parent = bar) => {
+		const b = control(el('button', '', text), hint, key);
 		b.addEventListener('click', action);
 		parent.append(b);
 		return b;
 	};
-	button('Labels', () => {
+	button('Labels', 'define the labels cards carry', 'l', () => {
 		renderLabels();
 		labelsDialog.showModal();
 	}).classList.add('push');
-	button('New call', newCall).title = 'n';
+	button('New call', 'clear the walked path', 'n', newCall);
 	const save = el('details', 'menu');
-	save.append(el('summary', '', 'Save'));
+	save.append(control(el('summary', '', 'Save'), 'download a copy; Ctrl+S overwrites the opened file', 's'));
 	const items = el('div', 'items');
-	button('.html', () => download(`${document.title}.html`, html(), 'text/html'), items);
-	button('.md', () => download(`${document.title}.md`, md, 'text/markdown'), items);
+	button('.html', 'this page, with the current script', null, () => download(`${document.title}.html`, html(), 'text/html'), items);
+	button('.md', 'the script alone', null, () => download(`${document.title}.md`, md, 'text/markdown'), items);
 	save.append(items);
-	save.title = 'download a copy; Ctrl+S overwrites the opened file';
 	bar.append(save);
-	button(theme === 'dark' ? '☀' : '☾', () => {
+	button(theme === 'dark' ? '☀' : '☾', 'theme', null, () => {
 		theme = theme === 'dark' ? 'light' : 'dark';
 		localStorage.setItem(THEME_KEY, theme);
 		document.documentElement.dataset.theme = theme;
 		renderBar();
-	}).title = 'theme';
+	});
 	canvas.style.marginTop = `${bar.offsetHeight}px`;
 }
 
@@ -566,8 +575,8 @@ document.addEventListener('keydown', e => {
 		render();
 	} else if (editing || typing || !plain) {
 		return;
-	} else if (e.key === 'n') {
-		newCall();
+	} else if (shortcuts.has(e.key)) {
+		shortcuts.get(e.key).click();
 	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
 		e.preventDefault();
 		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));
