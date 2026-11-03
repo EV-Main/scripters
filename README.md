@@ -4,10 +4,17 @@
 [<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs&style=flat-square" height="20">](https://docs.rs/call_scripters)
 ![Lines Of Code](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valeratrades/b48e6f02c61942200e7d1e3eeabf9bcb/raw/call_scripters-loc.json)
 <br>
-[<img alt="ci errors" src="https://img.shields.io/github/actions/workflow/status/@@REPO_SLUG@@/errors.yml?branch=main&style=for-the-badge&style=flat-square&label=errors&labelColor=420d09" height="20">](https://github.com/@@REPO_SLUG@@/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
-[<img alt="ci warnings" src="https://img.shields.io/github/actions/workflow/status/@@REPO_SLUG@@/warnings.yml?branch=main&style=for-the-badge&style=flat-square&label=warnings&labelColor=d16002" height="20">](https://github.com/@@REPO_SLUG@@/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
+[<img alt="ci errors" src="https://img.shields.io/github/actions/workflow/status/ev-main/call_scripters/errors.yml?branch=main&style=for-the-badge&style=flat-square&label=errors&labelColor=420d09" height="20">](https://github.com/ev-main/call_scripters/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
+[<img alt="ci warnings" src="https://img.shields.io/github/actions/workflow/status/ev-main/call_scripters/warnings.yml?branch=main&style=for-the-badge&style=flat-square&label=warnings&labelColor=d16002" height="20">](https://github.com/ev-main/call_scripters/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
+
+🌐 **[Live demo](https://ev-main.github.io/call_scripters/)** — the demo script, built; no setup, runs in the browser.
 
 Turns a markdown sales call script into one self-contained HTML file: each `# ` section becomes a card, response links become edges, and the caller clicks through the conversation graph during a live call, picking A/B variants as they go. The file works offline, can be edited inline, and saves a new copy of itself.
+
+![a call walked through the demo script](docs/.readme_assets/assets/walkthrough.webp)
+
+[`examples/demo.md`](examples/demo.md), walked: A/B variants picked in the top bar, responses clicked through to a booked call, then a card's markdown edited in place. For the real thing, [play with it](https://ev-main.github.io/call_scripters/).
+// redraw it yourself: `nix run .#film`.
 <!-- markdownlint-disable -->
 <details>
 <summary>
@@ -24,7 +31,7 @@ TODO
 ```sh
 call_scripters build script.md --direction horizontal   # or vertical; writes script.html
 ```
-Open the html in any browser. Click cards or responses to follow the call, pick variants and layout spacing in the top bar, double-click a card to edit its markdown (Ctrl+Enter commits, Esc cancels; Esc outside an edit clears the walked path), Ctrl+S saves the edited file. Format: [docs/spec/script_format.md](docs/spec/script_format.md).
+Open the html in any browser. Click cards or responses to follow the call, pick variants and layout spacing in the top bar, double-click a card to edit its markdown (Ctrl+Enter commits, Esc cancels; Esc outside an edit clears the walked path), `n` starts a new call, × or Backspace deletes the current card, Labels in the top bar defines labels that cards carry. Ctrl+S overwrites the opened file (Chromium asks for it once), Save ▾ downloads a copy as .html or .md; ☾/☀ switches theme. Format: [docs/spec/script_format.md](docs/spec/script_format.md).
 
 `nix run . -- <horizontal|vertical> [script.md]` builds the script (the demo by default) into a temp file and opens it with `xdg-open`.
 

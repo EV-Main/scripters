@@ -74,6 +74,20 @@
           ''}";
         };
 
+        apps.film = {
+          type = "app";
+          meta.description = "Redraw the README's walkthrough of the demo";
+          program = "${pkgs.writeShellScript "film" ''
+            set -e
+            export PATH=${pkgs.lib.makeBinPath [ pkgs.chromium pkgs.libwebp pkgs.nodejs ]}:$PATH
+            export FONTCONFIG_FILE=${pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }}
+            root=$(git rev-parse --show-toplevel)
+            html=$(mktemp -d)/demo.html
+            cargo run -q --manifest-path "$root/Cargo.toml" -- build "$root/examples/demo.md" --direction horizontal -o "$html"
+            node "$root/examples/film.mjs" "$html" "''${1:-$root/docs/.readme_assets/assets/walkthrough.webp}"
+          ''}";
+        };
+
         devShells.default =
           with pkgs;
           mkShell {
