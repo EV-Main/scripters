@@ -91,6 +91,11 @@ input {
 	background: var(--card);
 	cursor: pointer;
 }
+#bar button.on {
+	color: var(--card);
+	background: var(--accent);
+	border-color: var(--accent);
+}
 #bar .push {
 	margin-left: auto;
 }

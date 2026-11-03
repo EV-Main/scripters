@@ -20,11 +20,10 @@ const canvas = document.getElementById('canvas');
 
 let md = document.getElementById('src').textContent;
 let graph = parse(md);
-let sel = JSON.parse(sessionStorage.getItem(KEY) ?? '{"variants":{},"path":[]}');
+let sel = JSON.parse(sessionStorage.getItem(KEY) ?? '{"variants":{},"path":[],"calling":false}');
 let dirty = false;
 let editing = null;
 let lastClick = { id: null, t: 0 };
-let revealing = null;
 let cards = new Map();
 let held = new Set(); // arrow keys down; scrolled per frame instead of by OS key repeat, which stutters
 let lastFrame = 0;
@@ -111,7 +110,7 @@ function render() {
 		label.addEventListener('click', () => {
 			if (editing) return;
 			go(e.to, e.from);
-			reveal(e.to);
+			if (sel.calling) reveal(e.to);
 		});
 		canvas.append(label);
 		return label;
@@ -249,7 +248,7 @@ function renderBar() {
 		renderLabels();
 		labelsDialog.showModal();
 	}).classList.add('push');
-	button('New call', 'clear the walked path', 'n', newCall);
+	button('New call', 'clear the walked path; the view follows the call until Esc', 'n', newCall).classList.toggle('on', sel.calling);
 	const save = el('details', 'menu');
 	save.append(control(el('summary', '', 'Save'), 'download a copy; Ctrl+S overwrites the opened file', 's'));
 	const items = el('div', 'items');
@@ -268,8 +267,9 @@ function renderBar() {
 
 function newCall() {
 	sel.path = [];
+	sel.calling = true;
 	render();
-	scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+	scrollTo(0, 0);
 }
 
 function glide(t) {
@@ -446,7 +446,6 @@ function errorList(errors, fmt) {
 function click(n) {
 	if (editing) return;
 	const now = performance.now();
-	clearTimeout(revealing);
 	if (lastClick.id === n.id && now - lastClick.t < DOUBLE_CLICK_MS) {
 		lastClick = { id: null, t: 0 };
 		edit(n);
@@ -454,7 +453,7 @@ function click(n) {
 	}
 	lastClick = { id: n.id, t: now };
 	go(n.id);
-	revealing = setTimeout(() => reveal(n.id), DOUBLE_CLICK_MS); // scrolling earlier would move the card from under a second click
+	if (sel.calling) reveal(n.id);
 }
 
 function go(id, from) {
@@ -473,7 +472,6 @@ function reveal(id) {
 	scrollBy({
 		left: scrollFor(Math.min(...rects.map(r => r.left)), Math.max(...rects.map(r => r.right)), pad, innerWidth - pad),
 		top: scrollFor(Math.min(...rects.map(r => r.top)), Math.max(...rects.map(r => r.bottom)), top, innerHeight - pad),
-		behavior: 'smooth',
 	});
 }
 
@@ -492,7 +490,6 @@ function assert(ok, msg) {
 function commit(next) {
 	const g = SCRIPT_TAG.test(next) ? { errors: [{ line: 0, msg: 'a <script> tag cannot be embedded' }] } : parse(next);
 	if (g.errors.length) return g.errors;
-	clearTimeout(revealing); // its card may be gone
 	md = next;
 	graph = g;
 	dirty = true;
@@ -609,7 +606,10 @@ document.addEventListener('keydown', e => {
 		return;
 	} else if (e.key === 'Escape') { // document-level: the textarea loses focus on any click outside it
 		if (editing) editing = null;
-		else sel.path = [];
+		else {
+			sel.path = [];
+			sel.calling = false;
+		}
 		render();
 	} else if (editing || typing || !plain) {
 		return;

@@ -37,12 +37,13 @@ Hi, this is **Sam** from …
 - Renaming or deleting a label rewrites every heading carrying it.
 
 ## Selection
-`{ variants: {dim → value}, path: [nodeId] }`, kept in `sessionStorage`. A dim without a value is not chosen yet and admits every variant.
+`{ variants: {dim → value}, path: [nodeId], calling: bool }`, kept in `sessionStorage`. A dim without a value is not chosen yet and admits every variant.
 
 - A node is **visible** iff it is reachable from a root through nodes whose tags all agree with the chosen variants.
 - After every reparse, path entries and variant values absent from the document are dropped.
 - Clicking a card or edge label appends it to the path; a variant-tagged card also chooses its tags.
-- New call (`n`), or Esc while not editing, empties the path.
+- New call (`n`) empties the path and starts calling; Esc while not editing empties the path and stops calling.
+- While calling, every click scrolls its card and the cards it leads to into view at once.
 - Backspace deletes the current card.
 
 ## Embedding
