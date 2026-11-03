@@ -243,7 +243,7 @@ function renderBar() {
 		return b;
 	};
 	const center = () => [innerWidth / 2, (bar.offsetHeight + innerHeight) / 2];
-	button('−', 'zoom out; pinch or Ctrl+scroll zoom too', ['-'], () => zoomTo(zoom / ZOOM_STEP, ...center()));
+	button('−', 'zoom out; pinch or Ctrl+scroll zoom too', ['-', '_'], () => zoomTo(zoom / ZOOM_STEP, ...center()));
 	button('+', 'zoom in', ['+', '='], () => zoomTo(zoom * ZOOM_STEP, ...center()));
 	button('Labels', 'define the labels cards carry', ['l'], () => {
 		renderLabels();
