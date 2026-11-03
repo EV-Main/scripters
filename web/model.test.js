@@ -6,7 +6,8 @@ const dedent = s => s.replace(/^\n/, '').replace(/^\t+/gm, '');
 
 function render(graph) {
 	return [
-		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''} body=${JSON.stringify(n.body.trim())}`),
+		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
+		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')} body=${JSON.stringify(n.body.trim())}`),
 		...graph.edges.map(e => `edge ${e.from} -[${e.label}]-> ${e.to}`),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
 		...graph.errors.map(e => `error L${e.line}: ${e.msg}`),
@@ -122,6 +123,55 @@ test('parse errors', () => {
 	);
 	checkParse('', 'error L1: no `# ` headings');
 	checkParse('# A {k=1 k=2}\n', 'node a{k=2} "A" root body=""\ndim k: 2\nerror L1: tag key `k` given twice');
+});
+
+test('labels are defined before the first heading and attached with `.name`', () => {
+	checkParse(
+		`
+		[hot]: <oklch(0.6 0.2 25)> "Wants it \\"now\\""
+		[later]: <oklch(0.55 0.15 145)>
+
+		# A {.hot k=v .later}
+		- [x](#b)
+		# B {.later}
+		`,
+		`
+		label hot oklch(0.6 0.2 25) "Wants it \\"now\\""
+		label later oklch(0.55 0.15 145) ""
+		node a{k=v} "A" root .hot .later body=""
+		node b "B" .later body=""
+		edge a{k=v} -[x]-> b
+		dim k: v
+		`,
+	);
+	checkParse(
+		`
+		[hot]: <oklch(0.6 0.2 25)>
+		[hot]: <oklch(0 0 0)>
+		[cold]: #0000ff
+		# A {.warm .hot .hot}
+		`,
+		`
+		label hot oklch(0.6 0.2 25) ""
+		node a "A" root .warm .hot body=""
+		error L2: label \`hot\` defined twice
+		error L3: text before the first \`# \` heading
+		error L4: label \`.hot\` given twice
+		error L4: unknown label \`.warm\`
+		`,
+	);
+});
+
+test('spans locate the text an edit replaces', () => {
+	const md = '[l]: <oklch(0 0 0)>\n\n# A {k=v .l} ##\nbody\n- [x](#b)\n# B\n';
+	const g = parse(md);
+	assert.deepEqual(g.errors, []);
+	const [a, b] = g.nodes;
+	assert.equal(md.slice(a.attrs.start, a.attrs.end), ' {k=v .l}');
+	assert.equal(b.attrs.start, b.attrs.end);
+	assert.equal(md.slice(0, b.attrs.start), '[l]: <oklch(0 0 0)>\n\n# A {k=v .l} ##\nbody\n- [x](#b)\n# B');
+	assert.equal(md.slice(g.edges[0].start, g.edges[0].end), '- [x](#b)\n');
+	assert.equal(md.slice(g.labels[0].start, g.labels[0].end), '[l]: <oklch(0 0 0)>\n');
 });
 
 const VARIANTS = `

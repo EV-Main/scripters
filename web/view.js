@@ -4,6 +4,11 @@ if (!['LR', 'TB'].includes(RANKDIR)) throw new Error(`bundler wrote an unknown r
 const DOUBLE_CLICK_MS = 400;
 const SCRIPT_TAG = /<\/?script/i; // would end or nest the embedding <script> block
 const SPACING_KEY = 'call_scripters:spacing'; // shared across scripts: a viewing preference, not part of a call
+const THEME_KEY = 'call_scripters:theme';
+const LABEL_NAME = /^[\w-]+$/;
+const COLOR = /^oklch\((\d*\.?\d+) \d*\.?\d+ \d*\.?\d+\)$/; // canonical form; model.js parses the same
+const SWATCHES = [25, 55, 85, 130, 165, 200, 240, 275, 310, 345].flatMap(h => [`oklch(0.62 0.19 ${h})`, `oklch(0.86 0.09 ${h})`]);
+const randomColor = () => `oklch(${(0.5 + Math.random() * 0.4).toFixed(2)} 0.15 ${Math.floor(Math.random() * 360)})`;
 const pristine = document.documentElement.outerHTML;
 const bar = document.getElementById('bar');
 const canvas = document.getElementById('canvas');
@@ -18,6 +23,12 @@ let revealing = null;
 let cards = new Map();
 let spacing = Number(localStorage.getItem(SPACING_KEY) ?? 1);
 if (!(spacing > 0)) throw new Error(`corrupt stored spacing: ${localStorage.getItem(SPACING_KEY)}`);
+let theme = localStorage.getItem(THEME_KEY) ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+if (!['light', 'dark'].includes(theme)) throw new Error(`corrupt stored theme: ${theme}`);
+document.documentElement.dataset.theme = theme;
+let labelForm = null; // {orig: name being edited, or null for a new label; name, description, color}
+const labelsDialog = el('dialog', 'labels');
+document.body.append(labelsDialog);
 
 function el(tag, cls, html) {
 	const e = document.createElement(tag);
@@ -33,6 +44,7 @@ function render() {
 	sessionStorage.setItem(KEY, JSON.stringify(sel));
 
 	renderBar();
+	if (labelsDialog.open) renderLabels();
 	canvas.replaceChildren();
 	cards = new Map();
 	if (graph.errors.length) {
@@ -46,16 +58,36 @@ function render() {
 	const edges = graph.edges.filter(e => shown.has(e.from) && shown.has(e.to));
 	const current = sel.path.at(-1);
 	const walked = new Set(sel.path.slice(1).map((id, i) => `${sel.path[i]}\n${id}`));
+	const exits = new Set(edges.map(e => e.from));
 
 	for (const n of nodes) {
 		const card = el('article', 'card');
 		card.dataset.id = n.id;
 		card.classList.toggle('visited', sel.path.includes(n.id));
 		card.classList.toggle('current', n.id === current);
+		card.classList.toggle('terminal', !exits.has(n.id));
 		const head = el('header');
 		for (const [k, v] of Object.entries(n.tags)) head.append(el('span', 'chip', `${k}=${v}`));
+		for (const name of n.labels) {
+			const p = pill(graph.labels.find(l => l.name === name));
+			const x = el('button', 'unlabel', '×');
+			x.title = `remove ${name}`;
+			x.addEventListener('click', e => {
+				e.stopPropagation();
+				assert(!commit(splice([attrs(n, n.labels.filter(l => l !== name))])), 'removing a label broke the document');
+			});
+			p.append(x);
+			head.append(p);
+		}
+		head.append(labelPicker(n));
 		head.append(el('h2', '', marked.parseInline(n.title)));
-		card.append(head, el('div', 'body', marked.parse(n.body)));
+		const del = el('button', 'delete', '×');
+		del.title = 'delete card (select, then Backspace)';
+		del.addEventListener('click', e => {
+			e.stopPropagation();
+			remove(n);
+		});
+		card.append(del, head, el('div', 'body', marked.parse(n.body)));
 		card.addEventListener('click', () => click(n));
 		canvas.append(card);
 		cards.set(n.id, card);
@@ -132,19 +164,176 @@ function renderBar() {
 	const spacingLabel = el('label', 'dim', 'spacing ');
 	spacingLabel.append(range);
 	bar.append(spacingLabel);
-	const button = (text, action) => {
+	const button = (text, action, parent = bar) => {
 		const b = el('button', '', text);
 		b.addEventListener('click', action);
-		bar.append(b);
+		parent.append(b);
+		return b;
 	};
-	button('New call', () => {
-		sel.path = [];
-		render();
-		scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-	});
-	button('Save .html', saveHtml);
-	button('Save .md', () => download(`${document.title}.md`, md, 'text/markdown'));
+	button('Labels', () => {
+		renderLabels();
+		labelsDialog.showModal();
+	}).classList.add('push');
+	button('New call', newCall).title = 'n';
+	const save = el('details', 'menu');
+	save.append(el('summary', '', 'Save'));
+	const items = el('div', 'items');
+	button('.html', () => download(`${document.title}.html`, html(), 'text/html'), items);
+	button('.md', () => download(`${document.title}.md`, md, 'text/markdown'), items);
+	save.append(items);
+	save.title = 'download a copy; Ctrl+S overwrites the opened file';
+	bar.append(save);
+	button(theme === 'dark' ? '☀' : '☾', () => {
+		theme = theme === 'dark' ? 'light' : 'dark';
+		localStorage.setItem(THEME_KEY, theme);
+		document.documentElement.dataset.theme = theme;
+		renderBar();
+	}).title = 'theme';
 	canvas.style.marginTop = `${bar.offsetHeight}px`;
+}
+
+function newCall() {
+	sel.path = [];
+	render();
+	scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+}
+
+function pill(label) {
+	const p = el('span', 'pill');
+	p.textContent = label.name;
+	p.title = label.description;
+	p.style.background = label.color;
+	p.style.color = Number(COLOR.exec(label.color)[1]) > 0.7 ? 'oklch(0.2 0 0)' : 'oklch(1 0 0)';
+	return p;
+}
+
+function labelPicker(n) {
+	const pick = el('select', 'add');
+	pick.title = 'add a label';
+	pick.append(new Option('+', '', true, true));
+	pick.options[0].hidden = true;
+	for (const l of graph.labels) if (!n.labels.includes(l.name)) pick.append(new Option(l.name, l.name));
+	pick.append(new Option('Edit labels…', ' edit'));
+	pick.addEventListener('click', e => e.stopPropagation());
+	pick.addEventListener('change', () => {
+		if (pick.value === ' edit') {
+			renderLabels();
+			labelsDialog.showModal();
+			pick.value = '';
+		} else assert(!commit(splice([attrs(n, [...n.labels, pick.value])])), 'adding a defined label broke the document');
+	});
+	return pick;
+}
+
+function renderLabels() {
+	const head = el('header');
+	head.append(el('h2', '', `${graph.labels.length} labels`));
+	const add = el('button', 'primary', 'New label');
+	add.addEventListener('click', () => {
+		labelForm = { orig: null, name: '', description: '', color: randomColor() };
+		renderLabels();
+	});
+	const close = el('button', '', 'Close');
+	close.addEventListener('click', () => labelsDialog.close());
+	head.append(add, close);
+	labelsDialog.replaceChildren(head);
+	if (labelForm && labelForm.orig === null) labelsDialog.append(labelEditor());
+	const list = el('ul');
+	for (const l of graph.labels) {
+		if (labelForm?.orig === l.name) {
+			list.append(labelEditor());
+			continue;
+		}
+		const row = el('li');
+		const uses = graph.nodes.filter(n => n.labels.includes(l.name)).length;
+		const description = el('span', 'description');
+		description.textContent = l.description;
+		row.append(pill(l), description, el('span', 'uses', uses ? `${uses} card${uses > 1 ? 's' : ''}` : ''));
+		const edit = el('button', 'link', 'Edit');
+		edit.addEventListener('click', () => {
+			labelForm = { orig: l.name, name: l.name, description: l.description, color: l.color };
+			renderLabels();
+		});
+		const del = el('button', 'link danger', 'Delete');
+		del.addEventListener('click', () => {
+			if (!confirm(`Delete label "${l.name}"?${uses ? ` It is removed from ${uses} card${uses > 1 ? 's' : ''}.` : ''}`)) return;
+			assert(!commit(splice([{ start: l.start, end: l.end, text: '' }, ...relabel(l.name, null)])), 'deleting a label broke the document');
+		});
+		row.append(edit, del);
+		list.append(row);
+	}
+	labelsDialog.append(list);
+}
+
+// `name: null` drops the label
+function relabel(from, name) {
+	return graph.nodes.filter(n => n.labels.includes(from)).map(n => attrs(n, n.labels.flatMap(l => (l !== from ? [l] : name === null ? [] : [name]))));
+}
+
+function labelEditor() {
+	const f = labelForm;
+	const form = el('form', 'editor');
+	const preview = el('div', 'preview');
+	const errors = el('div');
+	const showPreview = () => preview.replaceChildren(pill({ name: f.name || 'Label preview', description: f.description, color: COLOR.test(f.color) ? f.color : 'oklch(0.93 0 0)' }));
+	const field = (label, input) => {
+		const l = el('label', '', label);
+		l.append(input);
+		form.append(l);
+	};
+	const text = (key, attrsOf) => {
+		const i = Object.assign(el('input'), { value: f[key], ...attrsOf });
+		i.addEventListener('input', () => {
+			f[key] = i.value;
+			showPreview();
+		});
+		return i;
+	};
+	form.append(preview);
+	field('Label name', text('name', { required: true, pattern: LABEL_NAME.source.slice(1, -1), title: 'letters, digits, _ and -' }));
+	field('Description', text('description', { placeholder: 'Description (optional)' }));
+	const color = el('div', 'color');
+	const random = el('button', '', '⟳');
+	Object.assign(random, { type: 'button', title: 'random color' });
+	const value = text('color', { required: true, pattern: COLOR.source.slice(1, -1), title: 'oklch(L C H)', size: 20 });
+	const set = c => {
+		f.color = value.value = c;
+		showPreview();
+	};
+	random.addEventListener('click', () => set(randomColor()));
+	const swatches = el('div', 'swatches');
+	for (const c of SWATCHES) {
+		const b = el('button');
+		Object.assign(b, { type: 'button', title: c });
+		b.style.background = c;
+		b.addEventListener('click', () => set(c));
+		swatches.append(b);
+	}
+	color.append(random, value);
+	field('Color', color);
+	form.append(swatches);
+	const cancel = el('button', '', 'Cancel');
+	cancel.type = 'button';
+	cancel.addEventListener('click', () => {
+		labelForm = null;
+		renderLabels();
+	});
+	form.append(cancel, el('button', 'primary', f.orig === null ? 'Create label' : 'Save changes'), errors);
+	form.addEventListener('submit', e => {
+		e.preventDefault();
+		const line = `[${f.name}]: <${f.color}>${f.description && ` "${f.description.replace(/[\\"]/g, '\\$&')}"`}\n`;
+		const def = graph.labels.find(l => l.name === f.orig);
+		const last = graph.labels.at(-1);
+		const edits = def ? [{ start: def.start, end: def.end, text: line }, ...(f.name !== f.orig ? relabel(f.orig, f.name) : [])] : [last ? { start: last.end, end: last.end, text: line } : { start: 0, end: 0, text: `${line}\n` }];
+		labelForm = null;
+		const failed = commit(splice(edits));
+		if (failed) {
+			labelForm = f;
+			errors.replaceChildren(errorList(failed, e => e.msg));
+		}
+	});
+	showPreview();
+	return form;
 }
 
 function errorList(errors, fmt) {
@@ -191,6 +380,44 @@ function reveal(id) {
 	});
 }
 
+// edits: [{start, end, text}] against the current md
+function splice(edits) {
+	edits.sort((a, b) => b.start - a.start);
+	edits.forEach((e, i) => i && assert(e.end <= edits[i - 1].start, 'splice edits overlap'));
+	return edits.reduce((s, e) => s.slice(0, e.start) + e.text + s.slice(e.end), md);
+}
+
+function assert(ok, msg) {
+	if (!ok) throw new Error(msg);
+}
+
+// the errors of `next`, or null once it replaced the md
+function commit(next) {
+	const g = SCRIPT_TAG.test(next) ? { errors: [{ line: 0, msg: 'a <script> tag cannot be embedded' }] } : parse(next);
+	if (g.errors.length) return g.errors;
+	clearTimeout(revealing); // its card may be gone
+	md = next;
+	graph = g;
+	dirty = true;
+	render();
+	return null;
+}
+
+// the heading's `{…}` block rewritten to carry `labels`
+function attrs(n, labels) {
+	const tokens = [...Object.entries(n.tags).map(([k, v]) => `${k}=${v}`), ...labels.map(l => `.${l}`)];
+	return { start: n.attrs.start, end: n.attrs.end, text: tokens.length ? ` {${tokens.join(' ')}}` : '' };
+}
+
+function remove(n) {
+	const last = graph.nodes.every(m => m === n || m.slot !== n.slot);
+	const inside = e => e.start >= n.start && e.end <= n.end;
+	const responses = last ? graph.edges.filter(e => e.to === n.id && !inside(e)) : [];
+	if (!confirm(`Delete "${n.title}"?${responses.length ? ` ${responses.length} response${responses.length > 1 ? 's' : ''} leading to it go too.` : ''}`)) return;
+	const errors = commit(splice([{ start: n.start, end: n.end, text: '' }, ...responses.map(e => ({ start: e.start, end: e.end, text: '' }))]));
+	if (errors) alert(`Cannot delete "${n.title}":\n${errors.map(e => e.msg).join('\n')}`);
+}
+
 function edit(n) {
 	editing = n.id;
 	const card = cards.get(n.id);
@@ -210,19 +437,14 @@ function edit(n) {
 		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
 			e.preventDefault();
 			const text = ta.value.trimEnd();
-			const next = md.slice(0, n.start) + (text && text + (n.end < md.length ? '\n\n' : '\n')) + md.slice(n.end);
 			const base = md.slice(0, n.start).split('\n').length - 1;
 			const lines = text.split('\n').length;
-			const g = SCRIPT_TAG.test(next) ? { errors: [{ line: 0, msg: 'a <script> tag cannot be embedded' }] } : parse(next);
-			if (g.errors.length) {
-				errors.replaceChildren(errorList(g.errors, e => (e.line > base && e.line <= base + lines ? `line ${e.line - base}: ${e.msg}` : e.line ? `elsewhere, document line ${e.line}: ${e.msg}` : e.msg)));
-				return;
-			}
-			md = next;
-			graph = g;
-			dirty = true;
 			editing = null;
-			render();
+			const failed = commit(splice([{ start: n.start, end: n.end, text: text && text + (n.end < md.length ? '\n\n' : '\n') }]));
+			if (failed) {
+				editing = n.id;
+				errors.replaceChildren(errorList(failed, e => (e.line > base && e.line <= base + lines ? `line ${e.line - base}: ${e.msg}` : e.line ? `elsewhere, document line ${e.line}: ${e.msg}` : e.msg)));
+			}
 		}
 	});
 	fit();
@@ -236,25 +458,75 @@ function download(name, text, type) {
 	a.click();
 }
 
-function saveHtml() {
-	if (SCRIPT_TAG.test(md)) throw new Error('markdown contains a <script> tag; commit should have rejected it');
+function html() {
+	assert(!SCRIPT_TAG.test(md), 'markdown contains a <script> tag; commit should have rejected it');
 	const doc = new DOMParser().parseFromString(pristine, 'text/html');
 	doc.getElementById('src').textContent = md;
-	download(`${document.title}.html`, `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`, 'text/html');
+	return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+}
+
+// a page on file:// cannot learn its own file handle: the user picks the file once, then it is remembered per url
+async function overwrite() {
+	if (!window.showSaveFilePicker) {
+		alert('This browser cannot overwrite files; download a copy with Save instead.');
+		return;
+	}
+	let handle = await handles('readonly', s => s.get(location.href));
+	if (handle && (await handle.requestPermission({ mode: 'readwrite' })) !== 'granted') handle = undefined;
+	if (!handle) {
+		try {
+			handle = await showSaveFilePicker({ suggestedName: decodeURIComponent(location.pathname.split('/').at(-1)), types: [{ description: 'html', accept: { 'text/html': ['.html'] } }] });
+		} catch (e) {
+			if (e.name === 'AbortError') return; // the user closed the picker
+			throw e;
+		}
+		await handles('readwrite', s => s.put(handle, location.href));
+	}
+	const w = await handle.createWritable();
+	await w.write(html());
+	await w.close();
 	dirty = false;
 	renderBar();
 }
 
+function handles(mode, op) {
+	return new Promise((resolve, reject) => {
+		const open = indexedDB.open('call_scripters', 1);
+		open.onupgradeneeded = () => open.result.createObjectStore('handles');
+		open.onerror = () => reject(open.error);
+		open.onsuccess = () => {
+			const req = op(open.result.transaction('handles', mode).objectStore('handles'));
+			req.onsuccess = () => resolve(req.result);
+			req.onerror = () => reject(req.error);
+		};
+	});
+}
+
 document.addEventListener('keydown', e => {
+	const typing = e.target.closest('input, textarea, select');
+	const plain = !(e.ctrlKey || e.metaKey || e.altKey);
 	if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
 		e.preventDefault();
-		saveHtml();
+		overwrite();
+	} else if (labelsDialog.open) {
+		return;
 	} else if (e.key === 'Escape') { // document-level: the textarea loses focus on any click outside it
 		if (editing) editing = null;
 		else sel.path = [];
 		render();
+	} else if (editing || typing || !plain) {
+		return;
+	} else if (e.key === 'n') {
+		newCall();
+	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
+		e.preventDefault();
+		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));
 	}
 });
+document.addEventListener('click', e => {
+	for (const d of document.querySelectorAll('details.menu[open]')) if (!d.contains(e.target)) d.open = false;
+});
+labelsDialog.addEventListener('close', () => (labelForm = null));
 addEventListener('beforeunload', e => dirty && e.preventDefault());
 
 render();

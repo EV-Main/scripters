@@ -5,7 +5,7 @@ script.md ──(cargo r -- build)──► script.html
                                    ├─ inlined css, vendor/marked, vendor/dagre, model.js, view.js
                                    └─ at runtime: md ─parse─► graph ─filter(selection)─► dagre layout ─► cards + svg edges
 edit card ─► splice section text into md string ─► reparse ─► rerender
-save      ─► same html with the #src block replaced   (download .html / .md)
+save      ─► same html with the #src block replaced   (Ctrl+S: overwrite via File System Access; Save ▾: download .html / .md)
 ```
 
 - `src/main.rs`: bundler only. Fills `web/template.html` placeholders with `web/` files and the markdown.

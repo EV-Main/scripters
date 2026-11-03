@@ -1,24 +1,65 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-rankdir="LR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>demo</title>
 <style>
 :root {
-	--ink: #1d232b;
-	--muted: #66707c;
-	--line: #c9cfd6;
-	--paper: #f4f5f7;
-	--card: #fff;
-	--accent: #2f6fd6;
-	--accent-soft: #eaf1fc;
+	--ink: oklch(0.25 0.015 255);
+	--muted: oklch(0.53 0.02 255);
+	--line: oklch(0.85 0.012 255);
+	--paper: oklch(0.97 0.004 265);
+	--card: oklch(1 0 0);
+	--bar: oklch(1 0 0 / 0.94);
+	--accent: oklch(0.55 0.17 260);
+	--accent-soft: oklch(0.95 0.02 260);
+	--accent-line: oklch(0.82 0.07 260);
+	--edge: oklch(0.72 0.015 255);
+	--code: oklch(0.955 0.003 265);
+	--chip: oklch(0.96 0.04 80);
+	--chip-ink: oklch(0.5 0.11 70);
+	--chip-line: oklch(0.89 0.07 80);
+	--danger: oklch(0.58 0.21 27);
+	--error: oklch(0.45 0.16 27);
+	--error-bg: oklch(0.95 0.025 20);
+	--error-line: oklch(0.83 0.08 20);
+	--shadow: oklch(0 0 0 / 0.1);
+	color-scheme: light;
 	font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
 	color: var(--ink);
 	background: var(--paper);
 }
+:root[data-theme='dark'] {
+	--ink: oklch(0.94 0 0);
+	--muted: oklch(0.7 0 0);
+	--line: oklch(0.38 0 0);
+	--paper: oklch(0.24 0 0);
+	--card: oklch(0.29 0 0);
+	--bar: oklch(0.27 0 0 / 0.94);
+	--accent: oklch(0.68 0.14 260);
+	--accent-soft: oklch(0.32 0.04 260);
+	--accent-line: oklch(0.48 0.09 260);
+	--edge: oklch(0.52 0 0);
+	--code: oklch(0.34 0 0);
+	--chip: oklch(0.33 0.04 80);
+	--chip-ink: oklch(0.85 0.09 80);
+	--chip-line: oklch(0.45 0.06 80);
+	--danger: oklch(0.68 0.19 25);
+	--error: oklch(0.85 0.08 20);
+	--error-bg: oklch(0.32 0.06 20);
+	--error-line: oklch(0.45 0.1 20);
+	--shadow: oklch(0 0 0 / 0.35);
+	color-scheme: dark;
+}
 body {
 	margin: 0;
+}
+button,
+select,
+input {
+	font: inherit;
+	color: var(--ink);
 }
 
 #bar {
@@ -30,7 +71,7 @@ body {
 	align-items: center;
 	gap: 0.5rem 1rem;
 	padding: 0.6rem 1rem;
-	background: rgba(255, 255, 255, 0.94);
+	background: var(--bar);
 	border-bottom: 1px solid var(--line);
 	backdrop-filter: blur(6px);
 }
@@ -38,7 +79,7 @@ body {
 	font-size: 1.05rem;
 }
 #bar .dirty {
-	color: #c4511a;
+	color: var(--danger);
 	font-size: 0.85rem;
 }
 #bar .dim {
@@ -46,18 +87,49 @@ body {
 	font-size: 0.9rem;
 }
 #bar select,
-#bar button {
-	font: inherit;
+#bar button,
+#bar summary,
+.labels button {
 	font-size: 0.9rem;
 	padding: 0.2rem 0.6rem;
 	border: 1px solid var(--line);
 	border-radius: 6px;
-	background: #fff;
-	color: var(--ink);
+	background: var(--card);
 	cursor: pointer;
 }
-#bar button:first-of-type {
+#bar .push {
 	margin-left: auto;
+}
+
+.menu {
+	position: relative;
+}
+.menu summary {
+	list-style: none;
+}
+.menu summary::after {
+	content: ' ▾';
+	color: var(--muted);
+}
+.menu .items {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 4px);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px;
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	box-shadow: 0 4px 16px var(--shadow);
+}
+#bar .menu .items button {
+	border: none;
+	text-align: left;
+}
+#bar .menu .items button:hover {
+	background: var(--accent-soft);
 }
 
 #canvas {
@@ -71,7 +143,7 @@ body {
 }
 #canvas path {
 	fill: none;
-	stroke: #9aa3ad;
+	stroke: var(--edge);
 	stroke-width: 1.5;
 }
 #canvas path.visited {
@@ -87,32 +159,36 @@ body {
 	background: var(--card);
 	border: 1px solid var(--line);
 	border-radius: 10px;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+	box-shadow: 0 1px 3px var(--shadow);
 	cursor: pointer;
 	transition: box-shadow 0.15s;
 }
 .card:hover {
-	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 3px 12px var(--shadow);
 }
 .card.visited {
 	background: var(--accent-soft);
-	border-color: #a9c3ee;
+	border-color: var(--accent-line);
 }
 .card.current {
 	border: 2px solid var(--accent);
-	box-shadow: 0 0 0 4px rgba(47, 111, 214, 0.18), 0 4px 16px rgba(0, 0, 0, 0.12);
+	box-shadow: 0 0 0 4px oklch(from var(--accent) l c h / 0.2), 0 4px 16px var(--shadow);
+}
+.card.terminal {
+	border-bottom: 6px solid var(--ink);
 }
 .card.editing {
 	z-index: 5;
 	cursor: auto;
-	box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+	box-shadow: 0 8px 30px var(--shadow);
 }
 .card header {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: baseline;
+	align-items: center;
 	gap: 0.4rem;
 	margin-bottom: 0.4rem;
+	padding-right: 1rem;
 }
 .card h2 {
 	flex-basis: 100%;
@@ -120,13 +196,73 @@ body {
 	font-size: 1.1rem;
 	line-height: 1.3;
 }
+.card .delete {
+	position: absolute;
+	top: 0.3rem;
+	right: 0.4rem;
+	padding: 0 0.3rem;
+	font-size: 1.1rem;
+	line-height: 1;
+	color: var(--danger);
+	background: none;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	opacity: 0.55;
+}
+.card .delete:hover {
+	opacity: 1;
+	background: var(--error-bg);
+}
 .chip {
 	font: 0.72rem/1.4 ui-monospace, monospace;
 	padding: 0 0.4rem;
 	border-radius: 999px;
-	background: #fdf0d8;
-	color: #8a5a00;
-	border: 1px solid #f0d6a4;
+	background: var(--chip);
+	color: var(--chip-ink);
+	border: 1px solid var(--chip-line);
+}
+.pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.15rem;
+	font-size: 0.75rem;
+	font-weight: 500;
+	line-height: 1.5;
+	padding: 0 0.55rem;
+	border-radius: 999px;
+	white-space: nowrap;
+}
+.pill .unlabel {
+	padding: 0;
+	margin-right: -0.2rem;
+	font-size: 0.85rem;
+	line-height: 1;
+	color: inherit;
+	background: none;
+	border: none;
+	cursor: pointer;
+	opacity: 0.7;
+}
+.pill .unlabel:hover {
+	opacity: 1;
+}
+.add {
+	appearance: none;
+	width: 1.6rem;
+	text-align-last: center;
+	font-size: 0.75rem;
+	line-height: 1.5;
+	padding: 0 0.45rem;
+	color: var(--muted);
+	background: none;
+	border: 1px dashed var(--line);
+	border-radius: 999px;
+	cursor: pointer;
+}
+.add:hover {
+	color: var(--ink);
+	border-color: var(--muted);
 }
 .body > :first-child {
 	margin-top: 0;
@@ -147,7 +283,7 @@ body {
 }
 .body code {
 	font-size: 0.88em;
-	background: #f0f1f3;
+	background: var(--code);
 	padding: 0 0.25em;
 	border-radius: 3px;
 }
@@ -161,7 +297,7 @@ body {
 	line-height: 1.35;
 	text-align: center;
 	color: var(--ink);
-	background: #fff;
+	background: var(--card);
 	border: 1px solid var(--line);
 	border-radius: 999px;
 	cursor: pointer;
@@ -172,7 +308,126 @@ body {
 .label.visited {
 	background: var(--accent);
 	border-color: var(--accent);
-	color: #fff;
+	color: var(--card);
+}
+
+.labels {
+	box-sizing: border-box;
+	width: min(52rem, 94vw);
+	padding: 0;
+	color: var(--ink);
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	box-shadow: 0 12px 40px var(--shadow);
+}
+.labels::backdrop {
+	background: oklch(0 0 0 / 0.4);
+}
+.labels > header {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.8rem 1rem;
+	background: var(--paper);
+	border-bottom: 1px solid var(--line);
+}
+.labels h2 {
+	flex: 1;
+	margin: 0;
+	font-size: 1rem;
+}
+.labels .primary {
+	color: oklch(1 0 0);
+	background: oklch(0.55 0.15 150);
+	border-color: oklch(0.5 0.15 150);
+}
+.labels ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.labels li {
+	display: grid;
+	grid-template-columns: 14rem 1fr 6rem auto auto;
+	align-items: center;
+	gap: 1rem;
+	padding: 0.7rem 1rem;
+	border-bottom: 1px solid var(--line);
+}
+.labels li:last-child {
+	border-bottom: none;
+}
+.labels .description,
+.labels .uses {
+	color: var(--muted);
+	font-size: 0.85rem;
+}
+.labels .pill {
+	justify-self: start;
+}
+.labels button.link {
+	padding: 0;
+	color: var(--muted);
+	background: none;
+	border: none;
+}
+.labels button.link:hover {
+	color: var(--accent);
+	text-decoration: underline;
+}
+.labels button.danger:hover {
+	color: var(--danger);
+}
+.editor {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: 0.6rem 1rem;
+	padding: 1rem;
+	background: var(--paper);
+	border-bottom: 1px solid var(--line);
+}
+.editor .preview {
+	flex-basis: 100%;
+}
+.editor label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	font-size: 0.85rem;
+	font-weight: 600;
+}
+.editor input {
+	font-size: 0.9rem;
+	font-weight: 400;
+	padding: 0.25rem 0.5rem;
+	background: var(--card);
+	border: 1px solid var(--line);
+	border-radius: 6px;
+}
+.editor input:invalid {
+	border-color: var(--danger);
+}
+.editor .color {
+	display: flex;
+	gap: 0.4rem;
+}
+.editor .swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	flex-basis: 100%;
+}
+.labels .editor .swatches button {
+	width: 1.4rem;
+	height: 1.4rem;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+}
+.editor > div:last-child {
+	flex-basis: 100%;
 }
 
 textarea {
@@ -180,6 +435,8 @@ textarea {
 	width: 100%;
 	min-height: 8rem;
 	font: 0.85rem/1.45 ui-monospace, monospace;
+	color: var(--ink);
+	background: var(--card);
 	border: 1px solid var(--line);
 	border-radius: 6px;
 	padding: 0.5rem;
@@ -188,9 +445,9 @@ textarea {
 .errors {
 	margin: 0.5rem 0 0;
 	padding: 0.6rem 0.6rem 0.6rem 1.6rem;
-	color: #9b1c1c;
-	background: #fdecec;
-	border: 1px solid #f2b8b8;
+	color: var(--error);
+	background: var(--error-bg);
+	border: 1px solid var(--error-line);
 	border-radius: 6px;
 	font-size: 0.9rem;
 }
@@ -204,7 +461,11 @@ textarea {
 <body>
 <header id="bar"></header>
 <main id="canvas"></main>
-<script type="text/markdown" id="src"># Introduction
+<script type="text/markdown" id="src">[objection]: <oklch(0.62 0.19 25)> "They push back"
+[win]: <oklch(0.62 0.17 150)> "The call ends well"
+[rework]: <oklch(0.86 0.09 85)> "Wording needs another pass"
+
+# Introduction
 Hi, this is **Sam** from Brightline. Did I catch you at an okay time?
 
 > Pause. Let them answer before going on.
@@ -256,28 +517,73 @@ your calendar. Most teams see the first booked job inside a week.
 - [Sounds good](#close)
 - [Too expensive](#price-objection)
 - [We already use something](#competitor-objection)
+- [Let me think about it](#think-about-it)
 
-# Price objection
-Totally understand. Most of our customers felt the same until they saw one recovered job covers the
-month. Would it help if I showed you the numbers for a team your size?
+# Anything else?
+Makes sense. Other than that, is there anything else that would stop you from getting started?
 
-- [Okay, show me](#close)
-- [Still no](#not-interested)
+> The first objection is rarely the last. Keep asking until the answer is no.
+
+- [No, that's it](#close)
+- [Price](#price-objection)
+- [Timing](#timing-objection)
+- [Current provider](#competitor-objection)
+- [Needs to ask someone](#partner-objection)
+- [Needs to think](#think-about-it)
+- [Tried this before](#doubt-objection)
+
+# Price objection {.objection}
+Totally fair. Is it the price itself, or not being sure it pays for itself? One recovered job usually covers
+the month. Want me to run the numbers for a team your size?
+
+- [Okay, that makes sense](#anything-else)
+- [Still too much](#not-interested)
+
+# Timing objection {.objection .rework}
+Understood. What would be different a month from now? Every week we wait is another week of missed calls,
+and setup takes about an hour on your side.
+
+- [Fair point](#anything-else)
+- [Really not now](#schedule-callback)
 
 # Competitor objection
 Makes sense. Out of curiosity, what do you like most about it, and what would you change?
 
-- [Open to comparing](#close)
+- [Open to comparing](#anything-else)
 - [Happy with it](#not-interested)
+
+# Partner objection
+Of course. If they were on this call and liked it, would you want to go ahead? Then let's put 15 minutes on
+the calendar with both of you, so they hear it first-hand.
+
+- [Yes, let's include them](#anything-else)
+- [They'd say no](#not-interested)
+
+# Think about it
+Of course. Usually when someone wants to think it over, it's one of three things: the money, whether it'll
+actually work for you, or someone else who needs to weigh in. Which is it for you?
+
+- [The money](#price-objection)
+- [Whether it'll work](#doubt-objection)
+- [Someone else decides](#partner-objection)
+- [Nothing specific](#close)
+
+# Doubt objection
+That's worth hearing. What went wrong last time? Most teams who come to us were burned by a generic answering
+service reading a script. We book straight into your calendar, and you hear every call.
+
+- [That's different](#anything-else)
+- [Still skeptical](#not-interested)
 
 # Close
 Let's do this: I'll set up a 15-minute walkthrough with your numbers. Does **Thursday at 10** or
 **Friday at 2** work better?
 
 - [Books a slot](#booked)
+- [Hesitates](#anything-else)
 - [Busy right now](#schedule-callback)
 
-# Booked
+# Booked {.win}
 Perfect, you'll get an invite in a minute. Thanks for your time!
 
 # Schedule callback
@@ -1199,12 +1505,13 @@ module.exports={Graph:require("./graph"),version:require("./version")}},{"./grap
 
 function parse(md) {
 	const nodes = [];
+	const labels = [];
 	const errors = [];
 	const lines = [];
 	for (let start = 0; start < md.length; ) {
 		const nl = md.indexOf('\n', start);
 		const end = nl === -1 ? md.length : nl + 1;
-		lines.push({ start, text: md.slice(start, end).replace(/\r?\n$/, '') });
+		lines.push({ start, end, text: md.slice(start, end).replace(/\r?\n$/, '') });
 		start = end;
 	}
 
@@ -1218,16 +1525,23 @@ function parse(md) {
 		} else if (f) {
 			fence = f[1];
 		} else {
-			const h = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/.exec(line.text);
+			const h = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/d.exec(line.text);
 			if (h) {
 				if (node) node.end = line.start;
-				node = heading(h[1] ?? '', line.start, lineNo, errors);
+				node = heading(h[1] ?? '', line.start + (h.indices[1]?.[0] ?? line.text.length), line.start, lineNo, errors);
 				nodes.push(node);
 				return;
 			}
 			const r = /^ {0,3}(?:[-*+]|\d+[.)])[ \t]+\[([^\]]+)\]\(#([^)\s]+)\)[ \t]*$/.exec(line.text);
 			if (r && node) {
-				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), line: lineNo });
+				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), line: lineNo, start: line.start, end: line.end });
+				return;
+			}
+			// a link reference definition: invisible when the md is rendered elsewhere
+			const l = /^\[([\w-]+)\]:[ \t]+<(oklch\(\d*\.?\d+ \d*\.?\d+ \d*\.?\d+\))>(?:[ \t]+"((?:[^"\\]|\\.)*)")?[ \t]*$/.exec(line.text);
+			if (l && !node) {
+				if (labels.some(d => d.name === l[1])) errors.push({ line: lineNo, msg: `label \`${l[1]}\` defined twice` });
+				else labels.push({ name: l[1], color: l[2], description: (l[3] ?? '').replace(/\\(.)/g, '$1'), line: lineNo, start: line.start, end: line.end });
 				return;
 			}
 		}
@@ -1241,6 +1555,7 @@ function parse(md) {
 	const slots = new Map();
 	for (const n of nodes) {
 		n.body = n.body.join('\n');
+		for (const l of n.labels) if (!labels.some(d => d.name === l)) errors.push({ line: n.line, msg: `unknown label \`.${l}\`` });
 		if (byId.has(n.id)) errors.push({ line: n.line, msg: `duplicate of line ${byId.get(n.id).line}: same heading and tags` });
 		byId.set(n.id, n);
 		if (!slots.has(n.slot)) slots.set(n.slot, []);
@@ -1257,13 +1572,13 @@ function parse(md) {
 				continue;
 			}
 			entered.add(r.slot);
-			for (const t of targets) edges.push({ from: n.id, to: t.id, label: r.label });
+			for (const t of targets) edges.push({ from: n.id, to: t.id, label: r.label, start: r.start, end: r.end });
 		}
 		delete n.responses;
 	}
 	for (const n of nodes) n.root = !entered.has(n.slot);
 
-	const graph = { nodes, edges, dims: {}, errors };
+	const graph = { nodes, edges, labels, dims: {}, errors };
 	if (errors.length === 0) {
 		const reached = visible(graph, {});
 		for (const n of nodes) if (!reached.has(n.id)) errors.push({ line: n.line, msg: `"${n.title}" is unreachable from any root` });
@@ -1279,14 +1594,23 @@ function parse(md) {
 	return graph;
 }
 
-function heading(raw, start, line, errors) {
+// `at`: offset of `raw` in the md, so `attrs` can locate the `{…}` block
+function heading(raw, at, start, line, errors) {
 	const tags = {};
+	const labels = [];
 	let title = raw.trim();
-	const t = /\s*\{\s*([\w-]+=[\w-]+(?:\s+[\w-]+=[\w-]+)*)\s*\}$/.exec(title);
+	const attrs = { start: at + title.length, end: at + title.length };
+	const t = /\s*\{\s*((?:[\w-]+=[\w-]+|\.[\w-]+)(?:\s+(?:[\w-]+=[\w-]+|\.[\w-]+))*)\s*\}$/.exec(title);
 	if (t) {
 		title = title.slice(0, t.index);
-		for (const pair of t[1].split(/\s+/)) {
-			const [k, v] = pair.split('=');
+		attrs.start = at + t.index;
+		for (const token of t[1].split(/\s+/)) {
+			if (token.startsWith('.')) {
+				if (labels.includes(token.slice(1))) errors.push({ line, msg: `label \`${token}\` given twice` });
+				else labels.push(token.slice(1));
+				continue;
+			}
+			const [k, v] = token.split('=');
 			if (k in tags) errors.push({ line, msg: `tag key \`${k}\` given twice` });
 			tags[k] = v;
 		}
@@ -1296,7 +1620,7 @@ function heading(raw, start, line, errors) {
 	const slot = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
 	const keys = Object.keys(tags).sort();
 	const id = keys.length ? `${slot}{${keys.map(k => `${k}=${tags[k]}`).join(' ')}}` : slot;
-	return { id, slot, title, tags, line, start, end: null, body: [], responses: [] };
+	return { id, slot, title, tags, labels, attrs, line, start, end: null, body: [], responses: [] };
 }
 
 // selection.variants: {dim: value}; a dim without a chosen value admits every variant
@@ -1325,8 +1649,16 @@ if (typeof module !== 'undefined') module.exports = { parse, visible };
 </script>
 <script>
 const KEY = `call_scripters:${document.title}`;
+const RANKDIR = document.documentElement.dataset.rankdir;
+if (!['LR', 'TB'].includes(RANKDIR)) throw new Error(`bundler wrote an unknown rankdir: ${RANKDIR}`);
 const DOUBLE_CLICK_MS = 400;
 const SCRIPT_TAG = /<\/?script/i; // would end or nest the embedding <script> block
+const SPACING_KEY = 'call_scripters:spacing'; // shared across scripts: a viewing preference, not part of a call
+const THEME_KEY = 'call_scripters:theme';
+const LABEL_NAME = /^[\w-]+$/;
+const COLOR = /^oklch\((\d*\.?\d+) \d*\.?\d+ \d*\.?\d+\)$/; // canonical form; model.js parses the same
+const SWATCHES = [25, 55, 85, 130, 165, 200, 240, 275, 310, 345].flatMap(h => [`oklch(0.62 0.19 ${h})`, `oklch(0.86 0.09 ${h})`]);
+const randomColor = () => `oklch(${(0.5 + Math.random() * 0.4).toFixed(2)} 0.15 ${Math.floor(Math.random() * 360)})`;
 const pristine = document.documentElement.outerHTML;
 const bar = document.getElementById('bar');
 const canvas = document.getElementById('canvas');
@@ -1339,6 +1671,14 @@ let editing = null;
 let lastClick = { id: null, t: 0 };
 let revealing = null;
 let cards = new Map();
+let spacing = Number(localStorage.getItem(SPACING_KEY) ?? 1);
+if (!(spacing > 0)) throw new Error(`corrupt stored spacing: ${localStorage.getItem(SPACING_KEY)}`);
+let theme = localStorage.getItem(THEME_KEY) ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+if (!['light', 'dark'].includes(theme)) throw new Error(`corrupt stored theme: ${theme}`);
+document.documentElement.dataset.theme = theme;
+let labelForm = null; // {orig: name being edited, or null for a new label; name, description, color}
+const labelsDialog = el('dialog', 'labels');
+document.body.append(labelsDialog);
 
 function el(tag, cls, html) {
 	const e = document.createElement(tag);
@@ -1354,6 +1694,7 @@ function render() {
 	sessionStorage.setItem(KEY, JSON.stringify(sel));
 
 	renderBar();
+	if (labelsDialog.open) renderLabels();
 	canvas.replaceChildren();
 	cards = new Map();
 	if (graph.errors.length) {
@@ -1367,16 +1708,36 @@ function render() {
 	const edges = graph.edges.filter(e => shown.has(e.from) && shown.has(e.to));
 	const current = sel.path.at(-1);
 	const walked = new Set(sel.path.slice(1).map((id, i) => `${sel.path[i]}\n${id}`));
+	const exits = new Set(edges.map(e => e.from));
 
 	for (const n of nodes) {
 		const card = el('article', 'card');
 		card.dataset.id = n.id;
 		card.classList.toggle('visited', sel.path.includes(n.id));
 		card.classList.toggle('current', n.id === current);
+		card.classList.toggle('terminal', !exits.has(n.id));
 		const head = el('header');
 		for (const [k, v] of Object.entries(n.tags)) head.append(el('span', 'chip', `${k}=${v}`));
+		for (const name of n.labels) {
+			const p = pill(graph.labels.find(l => l.name === name));
+			const x = el('button', 'unlabel', '×');
+			x.title = `remove ${name}`;
+			x.addEventListener('click', e => {
+				e.stopPropagation();
+				assert(!commit(splice([attrs(n, n.labels.filter(l => l !== name))])), 'removing a label broke the document');
+			});
+			p.append(x);
+			head.append(p);
+		}
+		head.append(labelPicker(n));
 		head.append(el('h2', '', marked.parseInline(n.title)));
-		card.append(head, el('div', 'body', marked.parse(n.body)));
+		const del = el('button', 'delete', '×');
+		del.title = 'delete card (select, then Backspace)';
+		del.addEventListener('click', e => {
+			e.stopPropagation();
+			remove(n);
+		});
+		card.append(del, head, el('div', 'body', marked.parse(n.body)));
 		card.addEventListener('click', () => click(n));
 		canvas.append(card);
 		cards.set(n.id, card);
@@ -1394,7 +1755,7 @@ function render() {
 	});
 
 	const g = new dagre.graphlib.Graph({ multigraph: true });
-	g.setGraph({ rankdir: 'LR', nodesep: 36, ranksep: 120, edgesep: 16, marginx: 48, marginy: 48 });
+	g.setGraph({ rankdir: RANKDIR, nodesep: 36 * spacing, ranksep: 60 * spacing, edgesep: 16 * spacing, marginx: 48, marginy: 48 });
 	for (const n of nodes) g.setNode(n.id, { width: cards.get(n.id).offsetWidth, height: cards.get(n.id).offsetHeight });
 	edges.forEach((e, i) => g.setEdge(e.from, e.to, { width: labels[i].offsetWidth, height: labels[i].offsetHeight, labelpos: 'c' }, String(i)));
 	dagre.layout(g);
@@ -1443,19 +1804,186 @@ function renderBar() {
 		label.append(select);
 		bar.append(label);
 	}
-	const button = (text, action) => {
+	const range = el('input');
+	Object.assign(range, { type: 'range', min: 0.1, max: 3, step: 0.1, value: spacing });
+	range.addEventListener('change', () => { // not `input`: render() rebuilds the bar, which would drop the slider mid-drag
+		spacing = Number(range.value);
+		localStorage.setItem(SPACING_KEY, spacing);
+		render();
+	});
+	const spacingLabel = el('label', 'dim', 'spacing ');
+	spacingLabel.append(range);
+	bar.append(spacingLabel);
+	const button = (text, action, parent = bar) => {
 		const b = el('button', '', text);
 		b.addEventListener('click', action);
-		bar.append(b);
+		parent.append(b);
+		return b;
 	};
-	button('New call', () => {
-		sel.path = [];
-		render();
-		scrollTo({ left: 0, top: 0, behavior: 'smooth' });
-	});
-	button('Save .html', saveHtml);
-	button('Save .md', () => download(`${document.title}.md`, md, 'text/markdown'));
+	button('Labels', () => {
+		renderLabels();
+		labelsDialog.showModal();
+	}).classList.add('push');
+	button('New call', newCall).title = 'n';
+	const save = el('details', 'menu');
+	save.append(el('summary', '', 'Save'));
+	const items = el('div', 'items');
+	button('.html', () => download(`${document.title}.html`, html(), 'text/html'), items);
+	button('.md', () => download(`${document.title}.md`, md, 'text/markdown'), items);
+	save.append(items);
+	save.title = 'download a copy; Ctrl+S overwrites the opened file';
+	bar.append(save);
+	button(theme === 'dark' ? '☀' : '☾', () => {
+		theme = theme === 'dark' ? 'light' : 'dark';
+		localStorage.setItem(THEME_KEY, theme);
+		document.documentElement.dataset.theme = theme;
+		renderBar();
+	}).title = 'theme';
 	canvas.style.marginTop = `${bar.offsetHeight}px`;
+}
+
+function newCall() {
+	sel.path = [];
+	render();
+	scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+}
+
+function pill(label) {
+	const p = el('span', 'pill');
+	p.textContent = label.name;
+	p.title = label.description;
+	p.style.background = label.color;
+	p.style.color = Number(COLOR.exec(label.color)[1]) > 0.7 ? 'oklch(0.2 0 0)' : 'oklch(1 0 0)';
+	return p;
+}
+
+function labelPicker(n) {
+	const pick = el('select', 'add');
+	pick.title = 'add a label';
+	pick.append(new Option('+', '', true, true));
+	pick.options[0].hidden = true;
+	for (const l of graph.labels) if (!n.labels.includes(l.name)) pick.append(new Option(l.name, l.name));
+	pick.append(new Option('Edit labels…', ' edit'));
+	pick.addEventListener('click', e => e.stopPropagation());
+	pick.addEventListener('change', () => {
+		if (pick.value === ' edit') {
+			renderLabels();
+			labelsDialog.showModal();
+			pick.value = '';
+		} else assert(!commit(splice([attrs(n, [...n.labels, pick.value])])), 'adding a defined label broke the document');
+	});
+	return pick;
+}
+
+function renderLabels() {
+	const head = el('header');
+	head.append(el('h2', '', `${graph.labels.length} labels`));
+	const add = el('button', 'primary', 'New label');
+	add.addEventListener('click', () => {
+		labelForm = { orig: null, name: '', description: '', color: randomColor() };
+		renderLabels();
+	});
+	const close = el('button', '', 'Close');
+	close.addEventListener('click', () => labelsDialog.close());
+	head.append(add, close);
+	labelsDialog.replaceChildren(head);
+	if (labelForm && labelForm.orig === null) labelsDialog.append(labelEditor());
+	const list = el('ul');
+	for (const l of graph.labels) {
+		if (labelForm?.orig === l.name) {
+			list.append(labelEditor());
+			continue;
+		}
+		const row = el('li');
+		const uses = graph.nodes.filter(n => n.labels.includes(l.name)).length;
+		const description = el('span', 'description');
+		description.textContent = l.description;
+		row.append(pill(l), description, el('span', 'uses', uses ? `${uses} card${uses > 1 ? 's' : ''}` : ''));
+		const edit = el('button', 'link', 'Edit');
+		edit.addEventListener('click', () => {
+			labelForm = { orig: l.name, name: l.name, description: l.description, color: l.color };
+			renderLabels();
+		});
+		const del = el('button', 'link danger', 'Delete');
+		del.addEventListener('click', () => {
+			if (!confirm(`Delete label "${l.name}"?${uses ? ` It is removed from ${uses} card${uses > 1 ? 's' : ''}.` : ''}`)) return;
+			assert(!commit(splice([{ start: l.start, end: l.end, text: '' }, ...relabel(l.name, null)])), 'deleting a label broke the document');
+		});
+		row.append(edit, del);
+		list.append(row);
+	}
+	labelsDialog.append(list);
+}
+
+// `name: null` drops the label
+function relabel(from, name) {
+	return graph.nodes.filter(n => n.labels.includes(from)).map(n => attrs(n, n.labels.flatMap(l => (l !== from ? [l] : name === null ? [] : [name]))));
+}
+
+function labelEditor() {
+	const f = labelForm;
+	const form = el('form', 'editor');
+	const preview = el('div', 'preview');
+	const errors = el('div');
+	const showPreview = () => preview.replaceChildren(pill({ name: f.name || 'Label preview', description: f.description, color: COLOR.test(f.color) ? f.color : 'oklch(0.93 0 0)' }));
+	const field = (label, input) => {
+		const l = el('label', '', label);
+		l.append(input);
+		form.append(l);
+	};
+	const text = (key, attrsOf) => {
+		const i = Object.assign(el('input'), { value: f[key], ...attrsOf });
+		i.addEventListener('input', () => {
+			f[key] = i.value;
+			showPreview();
+		});
+		return i;
+	};
+	form.append(preview);
+	field('Label name', text('name', { required: true, pattern: LABEL_NAME.source.slice(1, -1), title: 'letters, digits, _ and -' }));
+	field('Description', text('description', { placeholder: 'Description (optional)' }));
+	const color = el('div', 'color');
+	const random = el('button', '', '⟳');
+	Object.assign(random, { type: 'button', title: 'random color' });
+	const value = text('color', { required: true, pattern: COLOR.source.slice(1, -1), title: 'oklch(L C H)', size: 20 });
+	const set = c => {
+		f.color = value.value = c;
+		showPreview();
+	};
+	random.addEventListener('click', () => set(randomColor()));
+	const swatches = el('div', 'swatches');
+	for (const c of SWATCHES) {
+		const b = el('button');
+		Object.assign(b, { type: 'button', title: c });
+		b.style.background = c;
+		b.addEventListener('click', () => set(c));
+		swatches.append(b);
+	}
+	color.append(random, value);
+	field('Color', color);
+	form.append(swatches);
+	const cancel = el('button', '', 'Cancel');
+	cancel.type = 'button';
+	cancel.addEventListener('click', () => {
+		labelForm = null;
+		renderLabels();
+	});
+	form.append(cancel, el('button', 'primary', f.orig === null ? 'Create label' : 'Save changes'), errors);
+	form.addEventListener('submit', e => {
+		e.preventDefault();
+		const line = `[${f.name}]: <${f.color}>${f.description && ` "${f.description.replace(/[\\"]/g, '\\$&')}"`}\n`;
+		const def = graph.labels.find(l => l.name === f.orig);
+		const last = graph.labels.at(-1);
+		const edits = def ? [{ start: def.start, end: def.end, text: line }, ...(f.name !== f.orig ? relabel(f.orig, f.name) : [])] : [last ? { start: last.end, end: last.end, text: line } : { start: 0, end: 0, text: `${line}\n` }];
+		labelForm = null;
+		const failed = commit(splice(edits));
+		if (failed) {
+			labelForm = f;
+			errors.replaceChildren(errorList(failed, e => e.msg));
+		}
+	});
+	showPreview();
+	return form;
 }
 
 function errorList(errors, fmt) {
@@ -1502,6 +2030,44 @@ function reveal(id) {
 	});
 }
 
+// edits: [{start, end, text}] against the current md
+function splice(edits) {
+	edits.sort((a, b) => b.start - a.start);
+	edits.forEach((e, i) => i && assert(e.end <= edits[i - 1].start, 'splice edits overlap'));
+	return edits.reduce((s, e) => s.slice(0, e.start) + e.text + s.slice(e.end), md);
+}
+
+function assert(ok, msg) {
+	if (!ok) throw new Error(msg);
+}
+
+// the errors of `next`, or null once it replaced the md
+function commit(next) {
+	const g = SCRIPT_TAG.test(next) ? { errors: [{ line: 0, msg: 'a <script> tag cannot be embedded' }] } : parse(next);
+	if (g.errors.length) return g.errors;
+	clearTimeout(revealing); // its card may be gone
+	md = next;
+	graph = g;
+	dirty = true;
+	render();
+	return null;
+}
+
+// the heading's `{…}` block rewritten to carry `labels`
+function attrs(n, labels) {
+	const tokens = [...Object.entries(n.tags).map(([k, v]) => `${k}=${v}`), ...labels.map(l => `.${l}`)];
+	return { start: n.attrs.start, end: n.attrs.end, text: tokens.length ? ` {${tokens.join(' ')}}` : '' };
+}
+
+function remove(n) {
+	const last = graph.nodes.every(m => m === n || m.slot !== n.slot);
+	const inside = e => e.start >= n.start && e.end <= n.end;
+	const responses = last ? graph.edges.filter(e => e.to === n.id && !inside(e)) : [];
+	if (!confirm(`Delete "${n.title}"?${responses.length ? ` ${responses.length} response${responses.length > 1 ? 's' : ''} leading to it go too.` : ''}`)) return;
+	const errors = commit(splice([{ start: n.start, end: n.end, text: '' }, ...responses.map(e => ({ start: e.start, end: e.end, text: '' }))]));
+	if (errors) alert(`Cannot delete "${n.title}":\n${errors.map(e => e.msg).join('\n')}`);
+}
+
 function edit(n) {
 	editing = n.id;
 	const card = cards.get(n.id);
@@ -1518,25 +2084,17 @@ function edit(n) {
 	ta.addEventListener('input', fit);
 	ta.addEventListener('click', e => e.stopPropagation());
 	ta.addEventListener('keydown', e => {
-		if (e.key === 'Escape') {
-			editing = null;
-			render();
-		} else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
 			e.preventDefault();
 			const text = ta.value.trimEnd();
-			const next = md.slice(0, n.start) + (text && text + (n.end < md.length ? '\n\n' : '\n')) + md.slice(n.end);
 			const base = md.slice(0, n.start).split('\n').length - 1;
 			const lines = text.split('\n').length;
-			const g = SCRIPT_TAG.test(next) ? { errors: [{ line: 0, msg: 'a <script> tag cannot be embedded' }] } : parse(next);
-			if (g.errors.length) {
-				errors.replaceChildren(errorList(g.errors, e => (e.line > base && e.line <= base + lines ? `line ${e.line - base}: ${e.msg}` : e.line ? `elsewhere, document line ${e.line}: ${e.msg}` : e.msg)));
-				return;
-			}
-			md = next;
-			graph = g;
-			dirty = true;
 			editing = null;
-			render();
+			const failed = commit(splice([{ start: n.start, end: n.end, text: text && text + (n.end < md.length ? '\n\n' : '\n') }]));
+			if (failed) {
+				editing = n.id;
+				errors.replaceChildren(errorList(failed, e => (e.line > base && e.line <= base + lines ? `line ${e.line - base}: ${e.msg}` : e.line ? `elsewhere, document line ${e.line}: ${e.msg}` : e.msg)));
+			}
 		}
 	});
 	fit();
@@ -1550,21 +2108,75 @@ function download(name, text, type) {
 	a.click();
 }
 
-function saveHtml() {
-	if (SCRIPT_TAG.test(md)) throw new Error('markdown contains a <script> tag; commit should have rejected it');
+function html() {
+	assert(!SCRIPT_TAG.test(md), 'markdown contains a <script> tag; commit should have rejected it');
 	const doc = new DOMParser().parseFromString(pristine, 'text/html');
 	doc.getElementById('src').textContent = md;
-	download(`${document.title}.html`, `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`, 'text/html');
+	return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+}
+
+// a page on file:// cannot learn its own file handle: the user picks the file once, then it is remembered per url
+async function overwrite() {
+	if (!window.showSaveFilePicker) {
+		alert('This browser cannot overwrite files; download a copy with Save instead.');
+		return;
+	}
+	let handle = await handles('readonly', s => s.get(location.href));
+	if (handle && (await handle.requestPermission({ mode: 'readwrite' })) !== 'granted') handle = undefined;
+	if (!handle) {
+		try {
+			handle = await showSaveFilePicker({ suggestedName: decodeURIComponent(location.pathname.split('/').at(-1)), types: [{ description: 'html', accept: { 'text/html': ['.html'] } }] });
+		} catch (e) {
+			if (e.name === 'AbortError') return; // the user closed the picker
+			throw e;
+		}
+		await handles('readwrite', s => s.put(handle, location.href));
+	}
+	const w = await handle.createWritable();
+	await w.write(html());
+	await w.close();
 	dirty = false;
 	renderBar();
 }
 
+function handles(mode, op) {
+	return new Promise((resolve, reject) => {
+		const open = indexedDB.open('call_scripters', 1);
+		open.onupgradeneeded = () => open.result.createObjectStore('handles');
+		open.onerror = () => reject(open.error);
+		open.onsuccess = () => {
+			const req = op(open.result.transaction('handles', mode).objectStore('handles'));
+			req.onsuccess = () => resolve(req.result);
+			req.onerror = () => reject(req.error);
+		};
+	});
+}
+
 document.addEventListener('keydown', e => {
+	const typing = e.target.closest('input, textarea, select');
+	const plain = !(e.ctrlKey || e.metaKey || e.altKey);
 	if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
 		e.preventDefault();
-		saveHtml();
+		overwrite();
+	} else if (labelsDialog.open) {
+		return;
+	} else if (e.key === 'Escape') { // document-level: the textarea loses focus on any click outside it
+		if (editing) editing = null;
+		else sel.path = [];
+		render();
+	} else if (editing || typing || !plain) {
+		return;
+	} else if (e.key === 'n') {
+		newCall();
+	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
+		e.preventDefault();
+		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));
 	}
 });
+document.addEventListener('click', e => {
+	for (const d of document.querySelectorAll('details.menu[open]')) if (!d.contains(e.target)) d.open = false;
+});
+labelsDialog.addEventListener('close', () => (labelForm = null));
 addEventListener('beforeunload', e => dirty && e.preventDefault());
 
 render();

@@ -2,12 +2,13 @@
 
 function parse(md) {
 	const nodes = [];
+	const labels = [];
 	const errors = [];
 	const lines = [];
 	for (let start = 0; start < md.length; ) {
 		const nl = md.indexOf('\n', start);
 		const end = nl === -1 ? md.length : nl + 1;
-		lines.push({ start, text: md.slice(start, end).replace(/\r?\n$/, '') });
+		lines.push({ start, end, text: md.slice(start, end).replace(/\r?\n$/, '') });
 		start = end;
 	}
 
@@ -21,16 +22,23 @@ function parse(md) {
 		} else if (f) {
 			fence = f[1];
 		} else {
-			const h = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/.exec(line.text);
+			const h = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/d.exec(line.text);
 			if (h) {
 				if (node) node.end = line.start;
-				node = heading(h[1] ?? '', line.start, lineNo, errors);
+				node = heading(h[1] ?? '', line.start + (h.indices[1]?.[0] ?? line.text.length), line.start, lineNo, errors);
 				nodes.push(node);
 				return;
 			}
 			const r = /^ {0,3}(?:[-*+]|\d+[.)])[ \t]+\[([^\]]+)\]\(#([^)\s]+)\)[ \t]*$/.exec(line.text);
 			if (r && node) {
-				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), line: lineNo });
+				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), line: lineNo, start: line.start, end: line.end });
+				return;
+			}
+			// a link reference definition: invisible when the md is rendered elsewhere
+			const l = /^\[([\w-]+)\]:[ \t]+<(oklch\(\d*\.?\d+ \d*\.?\d+ \d*\.?\d+\))>(?:[ \t]+"((?:[^"\\]|\\.)*)")?[ \t]*$/.exec(line.text);
+			if (l && !node) {
+				if (labels.some(d => d.name === l[1])) errors.push({ line: lineNo, msg: `label \`${l[1]}\` defined twice` });
+				else labels.push({ name: l[1], color: l[2], description: (l[3] ?? '').replace(/\\(.)/g, '$1'), line: lineNo, start: line.start, end: line.end });
 				return;
 			}
 		}
@@ -44,6 +52,7 @@ function parse(md) {
 	const slots = new Map();
 	for (const n of nodes) {
 		n.body = n.body.join('\n');
+		for (const l of n.labels) if (!labels.some(d => d.name === l)) errors.push({ line: n.line, msg: `unknown label \`.${l}\`` });
 		if (byId.has(n.id)) errors.push({ line: n.line, msg: `duplicate of line ${byId.get(n.id).line}: same heading and tags` });
 		byId.set(n.id, n);
 		if (!slots.has(n.slot)) slots.set(n.slot, []);
@@ -60,13 +69,13 @@ function parse(md) {
 				continue;
 			}
 			entered.add(r.slot);
-			for (const t of targets) edges.push({ from: n.id, to: t.id, label: r.label });
+			for (const t of targets) edges.push({ from: n.id, to: t.id, label: r.label, start: r.start, end: r.end });
 		}
 		delete n.responses;
 	}
 	for (const n of nodes) n.root = !entered.has(n.slot);
 
-	const graph = { nodes, edges, dims: {}, errors };
+	const graph = { nodes, edges, labels, dims: {}, errors };
 	if (errors.length === 0) {
 		const reached = visible(graph, {});
 		for (const n of nodes) if (!reached.has(n.id)) errors.push({ line: n.line, msg: `"${n.title}" is unreachable from any root` });
@@ -82,14 +91,23 @@ function parse(md) {
 	return graph;
 }
 
-function heading(raw, start, line, errors) {
+// `at`: offset of `raw` in the md, so `attrs` can locate the `{…}` block
+function heading(raw, at, start, line, errors) {
 	const tags = {};
+	const labels = [];
 	let title = raw.trim();
-	const t = /\s*\{\s*([\w-]+=[\w-]+(?:\s+[\w-]+=[\w-]+)*)\s*\}$/.exec(title);
+	const attrs = { start: at + title.length, end: at + title.length };
+	const t = /\s*\{\s*((?:[\w-]+=[\w-]+|\.[\w-]+)(?:\s+(?:[\w-]+=[\w-]+|\.[\w-]+))*)\s*\}$/.exec(title);
 	if (t) {
 		title = title.slice(0, t.index);
-		for (const pair of t[1].split(/\s+/)) {
-			const [k, v] = pair.split('=');
+		attrs.start = at + t.index;
+		for (const token of t[1].split(/\s+/)) {
+			if (token.startsWith('.')) {
+				if (labels.includes(token.slice(1))) errors.push({ line, msg: `label \`${token}\` given twice` });
+				else labels.push(token.slice(1));
+				continue;
+			}
+			const [k, v] = token.split('=');
 			if (k in tags) errors.push({ line, msg: `tag key \`${k}\` given twice` });
 			tags[k] = v;
 		}
@@ -99,7 +117,7 @@ function heading(raw, start, line, errors) {
 	const slot = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
 	const keys = Object.keys(tags).sort();
 	const id = keys.length ? `${slot}{${keys.map(k => `${k}=${tags[k]}`).join(' ')}}` : slot;
-	return { id, slot, title, tags, line, start, end: null, body: [], responses: [] };
+	return { id, slot, title, tags, labels, attrs, line, start, end: null, body: [], responses: [] };
 }
 
 // selection.variants: {dim: value}; a dim without a chosen value admits every variant

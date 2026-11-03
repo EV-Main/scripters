@@ -1,3 +1,7 @@
+[objection]: <oklch(0.62 0.19 25)> "They push back"
+[win]: <oklch(0.62 0.17 150)> "The call ends well"
+[rework]: <oklch(0.86 0.09 85)> "Wording needs another pass"
+
 # Introduction
 Hi, this is **Sam** from Brightline. Did I catch you at an okay time?
 
@@ -65,14 +69,14 @@ Makes sense. Other than that, is there anything else that would stop you from ge
 - [Needs to think](#think-about-it)
 - [Tried this before](#doubt-objection)
 
-# Price objection
+# Price objection {.objection}
 Totally fair. Is it the price itself, or not being sure it pays for itself? One recovered job usually covers
 the month. Want me to run the numbers for a team your size?
 
 - [Okay, that makes sense](#anything-else)
 - [Still too much](#not-interested)
 
-# Timing objection
+# Timing objection {.objection .rework}
 Understood. What would be different a month from now? Every week we wait is another week of missed calls,
 and setup takes about an hour on your side.
 
@@ -116,7 +120,7 @@ Let's do this: I'll set up a 15-minute walkthrough with your numbers. Does **Thu
 - [Hesitates](#anything-else)
 - [Busy right now](#schedule-callback)
 
-# Booked
+# Booked {.win}
 Perfect, you'll get an invite in a minute. Thanks for your time!
 
 # Schedule callback
