@@ -30,7 +30,7 @@ Hi, this is **Sam** from …
 - A node is **visible** iff it is reachable from a root through nodes whose tags all agree with the chosen variants.
 - After every reparse, path entries and variant values absent from the document are dropped.
 - Clicking a card or edge label appends it to the path; a variant-tagged card also chooses its tags.
-- New call (button, or Esc while not editing) empties the path.
+- New call, or Esc while not editing, empties the path.
 
 ## Embedding
 The markdown is embedded in a `<script>` block, so it must not contain `<script` or `</script` (any case).

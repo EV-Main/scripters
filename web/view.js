@@ -137,16 +137,14 @@ function renderBar() {
 		b.addEventListener('click', action);
 		bar.append(b);
 	};
-	button('New call', newCall);
+	button('New call', () => {
+		sel.path = [];
+		render();
+		scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+	});
 	button('Save .html', saveHtml);
 	button('Save .md', () => download(`${document.title}.md`, md, 'text/markdown'));
 	canvas.style.marginTop = `${bar.offsetHeight}px`;
-}
-
-function newCall() {
-	sel.path = [];
-	render();
-	scrollTo({ left: 0, top: 0, behavior: 'smooth' });
 }
 
 function errorList(errors, fmt) {
@@ -252,8 +250,8 @@ document.addEventListener('keydown', e => {
 		e.preventDefault();
 		saveHtml();
 	} else if (e.key === 'Escape') { // document-level: the textarea loses focus on any click outside it
-		if (!editing) return newCall();
-		editing = null;
+		if (editing) editing = null;
+		else sel.path = [];
 		render();
 	}
 });
