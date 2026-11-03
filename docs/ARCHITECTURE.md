@@ -1,4 +1,6 @@
 # Architecture
+A call script is a markdown file; the caller follows it as a clickable conversation graph in one offline html file, and edits it in place.
+
 ```
 script.md ──bundle──► script.html (md embedded verbatim + inlined web/ assets)
                          └─ runtime: md ─parse─► graph ─filter(selection)─► layout ─► cards + edges

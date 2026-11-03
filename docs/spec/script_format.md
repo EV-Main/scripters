@@ -32,7 +32,7 @@ Hi, this is **Sam** from …
 - Defining a label twice, attaching an undefined one, or attaching one twice is an error.
 
 ## Editing
-- Every edit splices the md and reparses; an edit whose result has errors is refused.
+- An edit whose result has errors is refused.
 - Deleting a card removes its section. If it was the last node of its slot, the responses into that slot go with it.
 - Renaming or deleting a label rewrites every heading carrying it.
 
