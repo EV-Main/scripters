@@ -13,6 +13,7 @@ watch: script.md ─bundle per request─► http://127.0.0.1 page ─poll /vers
 
 - `src/`: the bundler, and the `watch` server.
 - `web/model.js`: the format's parser and visibility rules; DOM-free.
+- `web/place.js`: cross-axis placement of dagre's layout (Graphviz dot's network-simplex pass); DOM-free.
 - `web/view.js`: everything the page does.
 
 Format and semantics: [spec/script_format.md](spec/script_format.md).

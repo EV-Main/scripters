@@ -145,6 +145,7 @@ function render() {
 		g.setEdge(v, w, { width: labels[i].offsetWidth, height: labels[i].offsetHeight, labelpos: 'c' }, String(i));
 	});
 	dagre.layout(g);
+	place(g);
 
 	const [axis, cross, size, crossSize] = RANKDIR === 'TB' ? ['y', 'x', 'height', 'width'] : ['x', 'y', 'width', 'height'];
 	const lead = id => g.node(id)[axis] - g.node(id)[size] / 2;
@@ -492,10 +493,6 @@ function splice(edits) {
 	edits.sort((a, b) => b.start - a.start);
 	edits.forEach((e, i) => i && assert(e.end <= edits[i - 1].start, 'splice edits overlap'));
 	return edits.reduce((s, e) => s.slice(0, e.start) + e.text + s.slice(e.end), md);
-}
-
-function assert(ok, msg) {
-	if (!ok) throw new Error(msg);
 }
 
 // the errors of `next`, or null once it replaced the md

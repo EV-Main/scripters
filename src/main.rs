@@ -196,6 +196,7 @@ fn bundle(title: &str, direction: Direction, md: &str, live: Option<&str>) -> Re
 		("/*@MARKED@*/", include_str!("../web/vendor/marked.min.js")),
 		("/*@DAGRE@*/", include_str!("../web/vendor/dagre.min.js")),
 		("/*@MODEL@*/", include_str!("../web/model.js")),
+		("/*@PLACE@*/", include_str!("../web/place.js")),
 		("/*@VIEW@*/", include_str!("../web/view.js")),
 	];
 	let template = include_str!("../web/template.html");
