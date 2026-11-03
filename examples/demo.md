@@ -50,25 +50,70 @@ your calendar. Most teams see the first booked job inside a week.
 - [Sounds good](#close)
 - [Too expensive](#price-objection)
 - [We already use something](#competitor-objection)
+- [Let me think about it](#think-about-it)
+
+# Anything else?
+Makes sense. Other than that, is there anything else that would stop you from getting started?
+
+> The first objection is rarely the last. Keep asking until the answer is no.
+
+- [No, that's it](#close)
+- [Price](#price-objection)
+- [Timing](#timing-objection)
+- [Current provider](#competitor-objection)
+- [Needs to ask someone](#partner-objection)
+- [Needs to think](#think-about-it)
+- [Tried this before](#doubt-objection)
 
 # Price objection
-Totally understand. Most of our customers felt the same until they saw one recovered job covers the
-month. Would it help if I showed you the numbers for a team your size?
+Totally fair. Is it the price itself, or not being sure it pays for itself? One recovered job usually covers
+the month. Want me to run the numbers for a team your size?
 
-- [Okay, show me](#close)
-- [Still no](#not-interested)
+- [Okay, that makes sense](#anything-else)
+- [Still too much](#not-interested)
+
+# Timing objection
+Understood. What would be different a month from now? Every week we wait is another week of missed calls,
+and setup takes about an hour on your side.
+
+- [Fair point](#anything-else)
+- [Really not now](#schedule-callback)
 
 # Competitor objection
 Makes sense. Out of curiosity, what do you like most about it, and what would you change?
 
-- [Open to comparing](#close)
+- [Open to comparing](#anything-else)
 - [Happy with it](#not-interested)
+
+# Partner objection
+Of course. If they were on this call and liked it, would you want to go ahead? Then let's put 15 minutes on
+the calendar with both of you, so they hear it first-hand.
+
+- [Yes, let's include them](#anything-else)
+- [They'd say no](#not-interested)
+
+# Think about it
+Of course. Usually when someone wants to think it over, it's one of three things: the money, whether it'll
+actually work for you, or someone else who needs to weigh in. Which is it for you?
+
+- [The money](#price-objection)
+- [Whether it'll work](#doubt-objection)
+- [Someone else decides](#partner-objection)
+- [Nothing specific](#close)
+
+# Doubt objection
+That's worth hearing. What went wrong last time? Most teams who come to us were burned by a generic answering
+service reading a script. We book straight into your calendar, and you hear every call.
+
+- [That's different](#anything-else)
+- [Still skeptical](#not-interested)
 
 # Close
 Let's do this: I'll set up a 15-minute walkthrough with your numbers. Does **Thursday at 10** or
 **Friday at 2** work better?
 
 - [Books a slot](#booked)
+- [Hesitates](#anything-else)
 - [Busy right now](#schedule-callback)
 
 # Booked
