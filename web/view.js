@@ -73,6 +73,7 @@ function render() {
 	const current = sel.path.at(-1);
 	const walked = new Set(sel.path.slice(1).map((id, i) => `${sel.path[i]}\n${id}`));
 	const exits = new Set(edges.map(e => e.from));
+	const hue = e => (graph.edges.indexOf(e) * 137.508) % 360; // golden angle: consecutive edges land far apart, and the index survives filtering
 
 	for (const n of nodes) {
 		const card = el('article', 'card');
@@ -113,6 +114,7 @@ function render() {
 	const labels = edges.map(e => {
 		const label = el('button', 'label', marked.parseInline(e.label));
 		label.classList.toggle('visited', walked.has(`${e.from}\n${e.to}`));
+		label.style.setProperty('--hue', hue(e));
 		label.addEventListener('click', () => {
 			if (editing) return;
 			go(e.to, e.from);
@@ -200,6 +202,7 @@ function render() {
 		path.setAttribute('d', d);
 		path.setAttribute('marker-end', 'url(#arrow)');
 		path.classList.toggle('visited', walked.has(`${e.from}\n${e.to}`));
+		path.style.setProperty('--hue', hue(e));
 		svg.append(path);
 		Object.assign(labels[i].style, { left: `${x - labels[i].offsetWidth / 2}px`, top: `${y - labels[i].offsetHeight / 2}px` });
 	});

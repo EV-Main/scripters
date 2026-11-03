@@ -151,7 +151,7 @@ input {
 }
 #canvas path {
 	fill: none;
-	stroke: var(--edge);
+	stroke: oklch(from var(--edge) l 0.09 var(--hue));
 	stroke-width: 1.5;
 }
 #canvas path.visited {
@@ -347,9 +347,9 @@ input {
 	font-size: 0.82rem;
 	line-height: 1.35;
 	text-align: center;
-	color: var(--ink);
+	color: oklch(from var(--ink) l 0.06 var(--hue));
 	background: var(--card);
-	border: 1px solid var(--line);
+	border: 1px solid oklch(from var(--edge) l 0.09 var(--hue));
 	border-radius: 999px;
 	cursor: pointer;
 }
