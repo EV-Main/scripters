@@ -12,7 +12,7 @@ struct Cli {
 	/// which way conversation steps advance
 	#[arg(short, long, value_enum, default_value_t = Direction::Vertical)]
 	direction: Direction,
-	/// defaults to the md path with an `.html` extension
+	/// defaults to `<tmp>/call_scripters/<md stem>.html`
 	#[arg(short)]
 	o: Option<PathBuf>,
 	/// open the result with `xdg-open`
@@ -25,7 +25,14 @@ fn main() -> Result<()> {
 	let Cli { md, direction, o, open } = Cli::parse();
 	let src = std::fs::read_to_string(&md).wrap_err_with(|| format!("reading {}", md.display()))?;
 	let title = md.file_stem().ok_or_else(|| eyre!("{} has no file name", md.display()))?.to_string_lossy();
-	let out = o.unwrap_or_else(|| md.with_extension("html"));
+	let out = match o {
+		Some(o) => o,
+		None => {
+			let dir = std::env::temp_dir().join("call_scripters");
+			std::fs::create_dir_all(&dir).wrap_err_with(|| format!("creating {}", dir.display()))?;
+			dir.join(format!("{title}.html"))
+		}
+	};
 	std::fs::write(&out, bundle(&title, direction, &src)?).wrap_err_with(|| format!("writing {}", out.display()))?;
 	if open {
 		let status = std::process::Command::new("xdg-open").arg(&out).status().wrap_err("running xdg-open")?;

@@ -70,8 +70,7 @@
             set -e
             root=$(git rev-parse --show-toplevel)
             md=''${1:-$root/examples/demo.md}
-            out=$(mktemp -d)/$(basename "''${md%.md}").html
-            exec cargo run -q --manifest-path "$root/Cargo.toml" -- "$md" -o "$out" --open "''${@:2}"
+            exec cargo run -q --manifest-path "$root/Cargo.toml" -- "$md" --open "''${@:2}"
           ''}";
         };
 
