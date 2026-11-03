@@ -1,47 +1,36 @@
 #![feature(default_field_values)]
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, ValueEnum};
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 
+/// Bundle a markdown call script into one self-contained html file
 #[derive(Parser)]
 #[command(author, version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")"), about, long_about = None)]
 struct Cli {
-	#[command(subcommand)]
-	command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-	/// Bundle a markdown call script into one self-contained html file
-	Build {
-		md: PathBuf,
-		/// which way conversation steps advance
-		#[arg(short, long, value_enum, default_value_t = Direction::Vertical)]
-		direction: Direction,
-		/// defaults to the md path with an `.html` extension
-		#[arg(short)]
-		o: Option<PathBuf>,
-		/// open the result with `xdg-open`
-		#[arg(long)]
-		open: bool,
-	},
+	md: PathBuf,
+	/// which way conversation steps advance
+	#[arg(short, long, value_enum, default_value_t = Direction::Vertical)]
+	direction: Direction,
+	/// defaults to the md path with an `.html` extension
+	#[arg(short)]
+	o: Option<PathBuf>,
+	/// open the result with `xdg-open`
+	#[arg(long)]
+	open: bool,
 }
 
 fn main() -> Result<()> {
 	color_eyre::install()?;
-	match Cli::parse().command {
-		Command::Build { md, direction, o, open } => {
-			let src = std::fs::read_to_string(&md).wrap_err_with(|| format!("reading {}", md.display()))?;
-			let title = md.file_stem().ok_or_else(|| eyre!("{} has no file name", md.display()))?.to_string_lossy();
-			let out = o.unwrap_or_else(|| md.with_extension("html"));
-			std::fs::write(&out, bundle(&title, direction, &src)?).wrap_err_with(|| format!("writing {}", out.display()))?;
-			if open {
-				let status = std::process::Command::new("xdg-open").arg(&out).status().wrap_err("running xdg-open")?;
-				if !status.success() {
-					bail!("xdg-open {} exited with {status}", out.display());
-				}
-			}
+	let Cli { md, direction, o, open } = Cli::parse();
+	let src = std::fs::read_to_string(&md).wrap_err_with(|| format!("reading {}", md.display()))?;
+	let title = md.file_stem().ok_or_else(|| eyre!("{} has no file name", md.display()))?.to_string_lossy();
+	let out = o.unwrap_or_else(|| md.with_extension("html"));
+	std::fs::write(&out, bundle(&title, direction, &src)?).wrap_err_with(|| format!("writing {}", out.display()))?;
+	if open {
+		let status = std::process::Command::new("xdg-open").arg(&out).status().wrap_err("running xdg-open")?;
+		if !status.success() {
+			bail!("xdg-open {} exited with {status}", out.display());
 		}
 	}
 	Ok(())

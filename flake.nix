@@ -71,7 +71,7 @@
             root=$(git rev-parse --show-toplevel)
             md=''${1:-$root/examples/demo.md}
             out=$(mktemp -d)/$(basename "''${md%.md}").html
-            exec cargo run -q --manifest-path "$root/Cargo.toml" -- build "$md" -o "$out" --open "''${@:2}"
+            exec cargo run -q --manifest-path "$root/Cargo.toml" -- "$md" -o "$out" --open "''${@:2}"
           ''}";
         };
 
@@ -84,7 +84,7 @@
             export FONTCONFIG_FILE=${pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }}
             root=$(git rev-parse --show-toplevel)
             html=$(mktemp -d)/demo.html
-            cargo run -q --manifest-path "$root/Cargo.toml" -- build "$root/examples/demo.md" -o "$html"
+            cargo run -q --manifest-path "$root/Cargo.toml" -- "$root/examples/demo.md" -o "$html"
             node "$root/examples/film.mjs" "$html" "''${1:-$root/docs/.readme_assets/assets/walkthrough.webp}"
           ''}";
         };
