@@ -1,8 +1,18 @@
 cargo-features = ["codegen-backend"]
 [package]
 name = "call_scripters"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
+description = "Call scripts as markdown, followed as a clickable conversation graph in one offline html file"
+license = "BlueOak-1.0.0"
+repository = "https://github.com/ev-main/call_scripters"
+
+[package.metadata]
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }.tar.gz"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
 
 [dependencies]
 clap = { version = "^4.5.4", features = ["derive"] }

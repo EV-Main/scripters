@@ -20,7 +20,7 @@
         pkgs = import v_flakes.default_nixpkgs { inherit system; };
         rust = v_flakes.rs.default_nightly system;
         pre-commit-check = pre-commit-hooks.lib.${system}.run (v_flakes.files.preCommit { inherit pkgs; });
-        stdenv = pkgs.stdenvAdapters.useMoldLinker pkgs.stdenv;
+        stdenv = if pkgs.stdenv.hostPlatform.isLinux then pkgs.stdenvAdapters.useMoldLinker pkgs.stdenv else pkgs.stdenv;
 
         rs = v_flakes.rs { inherit pkgs rust; };
         github = v_flakes.github {
@@ -28,6 +28,8 @@
           enable = true;
           lastSupportedVersion = "nightly-2026-11-02";
           jobs.default = true;
+          release.targets = [ "x86_64-unknown-linux-gnu" "aarch64-apple-darwin" ];
+          publishCachix = { name = "valeratrades"; systems = [ "x86_64-linux" "aarch64-darwin" ]; };
         };
         readme = v_flakes.readme-fw {
           inherit pkgs pname;
