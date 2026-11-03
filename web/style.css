@@ -19,9 +19,10 @@
 	--error-line: oklch(0.83 0.08 20);
 	--shadow: oklch(0 0 0 / 0.1);
 	color-scheme: light;
-	font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+	font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
 	color: var(--ink);
 	background: var(--paper);
+	touch-action: pan-x pan-y; /* pinch zooms the canvas, not the page */
 }
 :root[data-theme='dark'] {
 	--ink: oklch(0.94 0 0);
@@ -147,7 +148,7 @@ input {
 .card {
 	position: absolute;
 	box-sizing: border-box;
-	width: 380px;
+	width: 24rem;
 	padding: 0.9rem 1.1rem;
 	background: var(--card);
 	border: 1px solid var(--line);
@@ -283,7 +284,7 @@ input {
 
 .label {
 	position: absolute;
-	max-width: 170px;
+	max-width: 11rem;
 	padding: 0.15rem 0.6rem;
 	font: inherit;
 	font-size: 0.82rem;

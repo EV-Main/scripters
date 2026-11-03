@@ -5,6 +5,9 @@ const DOUBLE_CLICK_MS = 400;
 const SCRIPT_TAG = /<\/?script/i; // would end or nest the embedding <script> block
 const SPACING_KEY = 'call_scripters:spacing'; // shared across scripts: a viewing preference, not part of a call
 const THEME_KEY = 'call_scripters:theme';
+const ZOOM_KEY = 'call_scripters:zoom';
+const ZOOM_STEP = 1.2;
+const [MIN_ZOOM, MAX_ZOOM] = [0.2, 3];
 const LABEL_NAME = /^[\w-]+$/;
 const COLOR = /^oklch\((\d*\.?\d+) \d*\.?\d+ \d*\.?\d+\)$/; // canonical form; model.js parses the same
 const SWATCHES = [25, 55, 85, 130, 165, 200, 240, 275, 310, 345].flatMap(h => [`oklch(0.62 0.19 ${h})`, `oklch(0.86 0.09 ${h})`]);
@@ -31,6 +34,11 @@ if (!(spacing > 0)) throw new Error(`corrupt stored spacing: ${localStorage.getI
 let theme = localStorage.getItem(THEME_KEY) ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 if (!['light', 'dark'].includes(theme)) throw new Error(`corrupt stored theme: ${theme}`);
 document.documentElement.dataset.theme = theme;
+let zoom = Number(localStorage.getItem(ZOOM_KEY) ?? 1);
+if (!(zoom >= MIN_ZOOM && zoom <= MAX_ZOOM)) throw new Error(`corrupt stored zoom: ${localStorage.getItem(ZOOM_KEY)}`);
+canvas.style.zoom = zoom;
+let pinch = null; // the two-finger touch's start: {spread, zoom, at}
+let gestureZoom = null; // Safari's touchpad pinch reports scale relative to its start
 let labelForm = null; // {orig: name being edited, or null for a new label; name, description, color}
 const labelsDialog = el('dialog', 'labels');
 document.body.append(labelsDialog);
@@ -234,6 +242,9 @@ function renderBar() {
 		parent.append(b);
 		return b;
 	};
+	const center = () => [innerWidth / 2, (bar.offsetHeight + innerHeight) / 2];
+	button('−', 'zoom out; pinch or Ctrl+scroll zoom too', '-', () => zoomTo(zoom / ZOOM_STEP, ...center()));
+	button('+', 'zoom in', '+', () => zoomTo(zoom * ZOOM_STEP, ...center()));
 	button('Labels', 'define the labels cards carry', 'l', () => {
 		renderLabels();
 		labelsDialog.showModal();
@@ -252,7 +263,7 @@ function renderBar() {
 		document.documentElement.dataset.theme = theme;
 		renderBar();
 	});
-	canvas.style.marginTop = `${bar.offsetHeight}px`;
+	document.body.style.paddingTop = `${bar.offsetHeight}px`; // a canvas margin would be zoomed
 }
 
 function newCall() {
@@ -268,6 +279,20 @@ function glide(t) {
 	const [dx, dy] = [...held].reduce(([x, y], k) => [x + ARROWS[k][0], y + ARROWS[k][1]], [0, 0]);
 	scrollBy(dx * step, dy * step);
 	requestAnimationFrame(glide);
+}
+
+// the canvas point under the client point (cx, cy)
+function canvasAt(cx, cy) {
+	const r = canvas.getBoundingClientRect();
+	return [(cx - r.left) / zoom, (cy - r.top) / zoom];
+}
+
+function zoomTo(z, cx, cy, at = canvasAt(cx, cy)) {
+	zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+	localStorage.setItem(ZOOM_KEY, zoom);
+	canvas.style.zoom = zoom;
+	const r = canvas.getBoundingClientRect();
+	scrollBy(r.left + at[0] * zoom - cx, r.top + at[1] * zoom - cy);
 }
 
 function pill(label) {
@@ -595,8 +620,8 @@ document.addEventListener('keydown', e => {
 			requestAnimationFrame(glide);
 		}
 		held.add(e.key);
-	} else if (shortcuts.has(e.key)) {
-		shortcuts.get(e.key).click();
+	} else if (shortcuts.has(e.key === '=' ? '+' : e.key)) { // `=` is `+` unshifted
+		shortcuts.get(e.key === '=' ? '+' : e.key).click();
 	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
 		e.preventDefault();
 		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));
@@ -607,6 +632,38 @@ addEventListener('blur', () => held.clear()); // keyup never arrives once focus 
 document.addEventListener('click', e => {
 	for (const d of document.querySelectorAll('details.menu[open]')) if (!d.contains(e.target)) d.open = false;
 });
+addEventListener(
+	'wheel',
+	e => {
+		if (!e.ctrlKey) return; // touchpad pinches arrive as Ctrl+wheel in Chromium and Firefox
+		e.preventDefault();
+		zoomTo(zoom * Math.exp(-(e.deltaMode ? 16 : 1) * e.deltaY * 0.01), e.clientX, e.clientY);
+	},
+	{ passive: false },
+);
+addEventListener('gesturestart', e => {
+	e.preventDefault();
+	gestureZoom = zoom;
+});
+addEventListener('gesturechange', e => {
+	e.preventDefault();
+	if (!pinch) zoomTo(gestureZoom * e.scale, e.clientX, e.clientY); // on iOS the touch handlers below already pinch
+});
+const spread = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+const middle = t => [(t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2];
+addEventListener('touchstart', e => {
+	if (e.touches.length === 2) pinch = { spread: spread(e.touches), zoom, at: canvasAt(...middle(e.touches)) };
+});
+addEventListener(
+	'touchmove',
+	e => {
+		if (!pinch || e.touches.length !== 2) return;
+		e.preventDefault();
+		zoomTo((pinch.zoom * spread(e.touches)) / pinch.spread, ...middle(e.touches), pinch.at);
+	},
+	{ passive: false },
+);
+for (const t of ['touchend', 'touchcancel']) addEventListener(t, e => e.touches.length < 2 && (pinch = null));
 labelsDialog.addEventListener('close', () => (labelForm = null));
 addEventListener('beforeunload', e => dirty && e.preventDefault());
 
