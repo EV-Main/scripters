@@ -5,7 +5,11 @@ fn build(test: &str, md: &str) -> Result<String, String> {
 	std::fs::create_dir_all(&dir).unwrap();
 	let src = dir.join("script.md");
 	std::fs::write(&src, md).unwrap();
-	let out = Command::new(env!("CARGO_BIN_EXE_call_scripters")).arg("build").arg(&src).output().unwrap();
+	let out = Command::new(env!("CARGO_BIN_EXE_call_scripters"))
+		.args(["build", "--direction", "horizontal"])
+		.arg(&src)
+		.output()
+		.unwrap();
 	let result = match out.status.success() {
 		true => Ok(std::fs::read_to_string(dir.join("script.html")).unwrap()),
 		false => Err(String::from_utf8(out.stderr).unwrap()),

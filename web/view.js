@@ -1,4 +1,6 @@
 const KEY = `call_scripters:${document.title}`;
+const RANKDIR = document.documentElement.dataset.rankdir;
+if (!['LR', 'TB'].includes(RANKDIR)) throw new Error(`bundler wrote an unknown rankdir: ${RANKDIR}`);
 const DOUBLE_CLICK_MS = 400;
 const SCRIPT_TAG = /<\/?script/i; // would end or nest the embedding <script> block
 const pristine = document.documentElement.outerHTML;
@@ -68,7 +70,7 @@ function render() {
 	});
 
 	const g = new dagre.graphlib.Graph({ multigraph: true });
-	g.setGraph({ rankdir: 'LR', nodesep: 36, ranksep: 120, edgesep: 16, marginx: 48, marginy: 48 });
+	g.setGraph({ rankdir: RANKDIR, nodesep: 36, ranksep: 120, edgesep: 16, marginx: 48, marginy: 48 });
 	for (const n of nodes) g.setNode(n.id, { width: cards.get(n.id).offsetWidth, height: cards.get(n.id).offsetHeight });
 	edges.forEach((e, i) => g.setEdge(e.from, e.to, { width: labels[i].offsetWidth, height: labels[i].offsetHeight, labelpos: 'c' }, String(i)));
 	dagre.layout(g);

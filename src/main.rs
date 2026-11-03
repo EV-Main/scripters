@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 
 #[derive(Parser)]
@@ -15,6 +15,9 @@ enum Command {
 	/// Bundle a markdown call script into one self-contained html file
 	Build {
 		md: PathBuf,
+		/// which way conversation steps advance
+		#[arg(short, long)]
+		direction: Direction,
 		/// defaults to the md path with an `.html` extension
 		#[arg(short)]
 		o: Option<PathBuf>,
@@ -24,14 +27,20 @@ enum Command {
 	},
 }
 
+#[derive(Clone, Copy, ValueEnum)]
+enum Direction {
+	Horizontal,
+	Vertical,
+}
+
 fn main() -> Result<()> {
 	color_eyre::install()?;
 	match Cli::parse().command {
-		Command::Build { md, o, open } => {
+		Command::Build { md, direction, o, open } => {
 			let src = std::fs::read_to_string(&md).wrap_err_with(|| format!("reading {}", md.display()))?;
 			let title = md.file_stem().ok_or_else(|| eyre!("{} has no file name", md.display()))?.to_string_lossy();
 			let out = o.unwrap_or_else(|| md.with_extension("html"));
-			std::fs::write(&out, bundle(&title, &src)?).wrap_err_with(|| format!("writing {}", out.display()))?;
+			std::fs::write(&out, bundle(&title, direction, &src)?).wrap_err_with(|| format!("writing {}", out.display()))?;
 			if open {
 				let status = std::process::Command::new("xdg-open").arg(&out).status().wrap_err("running xdg-open")?;
 				if !status.success() {
@@ -43,7 +52,7 @@ fn main() -> Result<()> {
 	Ok(())
 }
 
-fn bundle(title: &str, md: &str) -> Result<String> {
+fn bundle(title: &str, direction: Direction, md: &str) -> Result<String> {
 	let lower = md.to_ascii_lowercase();
 	if lower.contains("<script") || lower.contains("</script") {
 		bail!("markdown contains a <script> tag; it would break out of the embedding <script> block");
@@ -51,6 +60,13 @@ fn bundle(title: &str, md: &str) -> Result<String> {
 	let title = title.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
 	let parts = [
 		("@TITLE@", title.as_str()),
+		(
+			"@RANKDIR@",
+			match direction {
+				Direction::Horizontal => "LR",
+				Direction::Vertical => "TB",
+			},
+		),
 		("/*@STYLE@*/", include_str!("../web/style.css")),
 		("@SRC@", md),
 		("/*@MARKED@*/", include_str!("../web/vendor/marked.min.js")),
