@@ -35,6 +35,7 @@ Hi, this is **Sam** from …
 - An edit whose result has errors is refused.
 - Deleting a card removes its section. If it was the last node of its slot, the responses into that slot go with it.
 - Renaming or deleting a label rewrites every heading carrying it.
+- Undo (`u`, Ctrl+Z) and redo (`U`, Ctrl+Y, Ctrl+Shift+Z) step through this page's edits; the history lives in page memory, not the md.
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response, or at the end of its section if it has none.
 
 ## Selection

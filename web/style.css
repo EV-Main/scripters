@@ -96,6 +96,10 @@ input {
 	background: var(--accent);
 	border-color: var(--accent);
 }
+#bar button:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
 #bar .push {
 	margin-left: auto;
 }

@@ -21,7 +21,9 @@ const canvas = document.getElementById('canvas');
 let md = document.getElementById('src').textContent;
 let graph = parse(md);
 let sel = JSON.parse(sessionStorage.getItem(KEY) ?? '{"variants":{},"path":[],"calling":false}');
-let dirty = false;
+let saved = md; // what the file on disk holds
+let undos = []; // earlier mds, latest last; in memory only
+let redos = [];
 let live = document.documentElement.dataset.live; // version of the md a `watch` server built this page from; absent in a built file
 let editing = null;
 let lastClick = { id: null, t: 0 };
@@ -219,7 +221,7 @@ function render() {
 
 function renderBar() {
 	bar.replaceChildren(el('strong', 'title', document.title));
-	if (dirty) bar.append(el('span', 'dirty', '● unsaved'));
+	if (md !== saved) bar.append(el('span', 'dirty', '● unsaved'));
 	for (const [dim, values] of Object.entries(graph.dims)) {
 		const select = el('select');
 		for (const v of ['all', ...values]) select.append(new Option(v, v, false, sel.variants[dim] === v));
@@ -261,6 +263,8 @@ function renderBar() {
 	const center = () => [innerWidth / 2, (bar.offsetHeight + innerHeight) / 2];
 	button('−', 'zoom out; pinch or Ctrl+scroll zoom too', ['-', '_'], () => zoomTo(zoom / ZOOM_STEP, ...center()));
 	button('+', 'zoom in', ['+', '='], () => zoomTo(zoom * ZOOM_STEP, ...center()));
+	button('↶', 'undo an edit; Ctrl+Z too', ['u'], () => travel(undos, redos)).disabled = !undos.length;
+	button('↷', 'redo; Ctrl+Y, Ctrl+Shift+Z too', ['U'], () => travel(redos, undos)).disabled = !redos.length;
 	button('Labels', 'define the labels cards carry', ['l'], () => {
 		renderLabels();
 		labelsDialog.showModal();
@@ -513,11 +517,23 @@ function splice(edits) {
 function commit(next) {
 	const g = SCRIPT_TAG.test(next) ? { errors: [{ line: 0, msg: 'a <script> tag cannot be embedded' }] } : parse(next);
 	if (g.errors.length) return g.errors;
+	if (next !== md) {
+		undos.push(md);
+		redos = [];
+	}
 	md = next;
 	graph = g;
-	dirty = true;
 	render();
 	return null;
+}
+
+function travel(from, to) {
+	to.push(md);
+	md = from.pop();
+	graph = parse(md);
+	assert(!graph.errors.length, 'history holds only committed mds');
+	editing = null;
+	render();
 }
 
 // the heading's `{…}` block rewritten to carry `labels`
@@ -633,7 +649,7 @@ async function overwrite() {
 			return;
 		}
 		live = await r.text();
-		dirty = false;
+		saved = md;
 		renderBar();
 		return;
 	}
@@ -655,7 +671,7 @@ async function overwrite() {
 	const w = await handle.createWritable();
 	await w.write(html());
 	await w.close();
-	dirty = false;
+	saved = md;
 	renderBar();
 }
 
@@ -685,6 +701,9 @@ document.addEventListener('keydown', e => {
 			editing = null;
 			render();
 		} else shortcuts.get('Escape').click();
+	} else if ((e.ctrlKey || e.metaKey) && !e.altKey && !editing && !typing && ['z', 'y'].includes(e.key.toLowerCase())) { // in a text field these stay its own undo
+		e.preventDefault();
+		shortcuts.get(e.key === 'z' ? 'u' : 'U').click();
 	} else if (editing || typing || !plain) {
 		return;
 	} else if (e.key in ARROWS) {
@@ -739,7 +758,7 @@ addEventListener(
 );
 for (const t of ['touchend', 'touchcancel']) addEventListener(t, e => e.touches.length < 2 && (pinch = null));
 labelsDialog.addEventListener('close', () => (labelForm = null));
-addEventListener('beforeunload', e => dirty && e.preventDefault());
+addEventListener('beforeunload', e => md !== saved && e.preventDefault());
 if (live)
 	(async function poll() {
 		let version;
@@ -749,7 +768,7 @@ if (live)
 			if (e instanceof TypeError) return; // the watch stopped serving
 			throw e;
 		}
-		if (version !== live && !dirty) location.reload(); // unsaved edits stay; their Ctrl+S is refused as a conflict
+		if (version !== live && md === saved) location.reload(); // unsaved edits stay; their Ctrl+S is refused as a conflict
 		else setTimeout(poll, 300);
 	})();
 
