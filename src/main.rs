@@ -17,7 +17,7 @@ enum Command {
 	Build {
 		md: PathBuf,
 		/// which way conversation steps advance
-		#[arg(short, long)]
+		#[arg(short, long, value_enum, default_value_t = Direction::Vertical)]
 		direction: Direction,
 		/// defaults to the md path with an `.html` extension
 		#[arg(short)]
