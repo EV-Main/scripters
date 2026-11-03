@@ -104,8 +104,8 @@ fn watch(script: &Script) -> Result<()> {
 	let url = format!("http://{addr}/");
 	xdg_open(OsStr::new(&url))?;
 	eprintln!("serving {} at {url}", script.md.display());
+	//LOOP: serves until the process is killed
 	loop {
-		//LOOP: serves until the process is killed
 		let mut req = server.recv().wrap_err("receiving a request")?;
 		let disk = match script.read() {
 			Ok(src) => {
