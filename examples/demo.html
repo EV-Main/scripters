@@ -1890,41 +1890,41 @@ function renderBar() {
 	spacingLabel.append(range);
 	bar.append(spacingLabel);
 	shortcuts = new Map();
-	const control = (c, hint, key) => {
-		c.title = key ? `${hint}\n[${key}]` : hint;
-		if (key) {
-			assert(!shortcuts.has(key), `two bar controls bound to ${key}`);
-			shortcuts.set(key, c);
+	const control = (c, hint, keys) => {
+		c.title = [hint, ...keys.map(k => `[${k}]`)].join('\n');
+		for (const k of keys) {
+			assert(!shortcuts.has(k), `two bar controls bound to ${k}`);
+			shortcuts.set(k, c);
 		}
 		return c;
 	};
-	const button = (text, hint, key, action, parent = bar) => {
-		const b = control(el('button', '', text), hint, key);
+	const button = (text, hint, keys, action, parent = bar) => {
+		const b = control(el('button', '', text), hint, keys);
 		b.addEventListener('click', action);
 		parent.append(b);
 		return b;
 	};
 	const center = () => [innerWidth / 2, (bar.offsetHeight + innerHeight) / 2];
-	button('−', 'zoom out; pinch or Ctrl+scroll zoom too', '-', () => zoomTo(zoom / ZOOM_STEP, ...center()));
-	button('+', 'zoom in', '+', () => zoomTo(zoom * ZOOM_STEP, ...center()));
-	button('Labels', 'define the labels cards carry', 'l', () => {
+	button('−', 'zoom out; pinch or Ctrl+scroll zoom too', ['-'], () => zoomTo(zoom / ZOOM_STEP, ...center()));
+	button('+', 'zoom in', ['+', '='], () => zoomTo(zoom * ZOOM_STEP, ...center()));
+	button('Labels', 'define the labels cards carry', ['l'], () => {
 		renderLabels();
 		labelsDialog.showModal();
 	}).classList.add('push');
-	button('New call', 'clear the walked path; the view follows the call until Clear', 'n', newCall).classList.toggle('on', sel.calling);
-	button('Clear', 'clear the walked path and end the call', 'Esc', () => {
+	button('New call', 'clear the walked path; the view follows the call until Clear', ['n'], newCall).classList.toggle('on', sel.calling);
+	button('Clear', 'clear the walked path and end the call', ['Escape'], () => {
 		sel.path = [];
 		sel.calling = false;
 		render();
 	});
 	const save = el('details', 'menu');
-	save.append(control(el('summary', '', 'Save'), 'download a copy; Ctrl+S overwrites the opened file', 's'));
+	save.append(control(el('summary', '', 'Save'), 'download a copy; Ctrl+S overwrites the opened file', ['s']));
 	const items = el('div', 'items');
-	button('.html', 'this page, with the current script', null, () => download(`${document.title}.html`, html(), 'text/html'), items);
-	button('.md', 'the script alone', null, () => download(`${document.title}.md`, md, 'text/markdown'), items);
+	button('.html', 'this page, with the current script', [], () => download(`${document.title}.html`, html(), 'text/html'), items);
+	button('.md', 'the script alone', [], () => download(`${document.title}.md`, md, 'text/markdown'), items);
 	save.append(items);
 	bar.append(save);
-	button(theme === 'dark' ? '☀' : '☾', 'theme', null, () => {
+	button(theme === 'dark' ? '☀' : '☾', 'theme', [], () => {
 		theme = theme === 'dark' ? 'light' : 'dark';
 		localStorage.setItem(THEME_KEY, theme);
 		document.documentElement.dataset.theme = theme;
@@ -2276,7 +2276,7 @@ document.addEventListener('keydown', e => {
 		if (editing) {
 			editing = null;
 			render();
-		} else shortcuts.get('Esc').click();
+		} else shortcuts.get('Escape').click();
 	} else if (editing || typing || !plain) {
 		return;
 	} else if (e.key in ARROWS) {
@@ -2286,8 +2286,8 @@ document.addEventListener('keydown', e => {
 			requestAnimationFrame(glide);
 		}
 		held.add(e.key);
-	} else if (shortcuts.has(e.key === '=' ? '+' : e.key)) { // `=` is `+` unshifted
-		shortcuts.get(e.key === '=' ? '+' : e.key).click();
+	} else if (shortcuts.has(e.key)) {
+		shortcuts.get(e.key).click();
 	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
 		e.preventDefault();
 		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));
