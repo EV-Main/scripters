@@ -37,6 +37,7 @@ document.documentElement.dataset.theme = theme;
 let zoom = Number(localStorage.getItem(ZOOM_KEY) ?? 1);
 if (!(zoom >= MIN_ZOOM && zoom <= MAX_ZOOM)) throw new Error(`corrupt stored zoom: ${localStorage.getItem(ZOOM_KEY)}`);
 canvas.style.zoom = zoom;
+canvas.style.setProperty('--zoom', zoom);
 let pinch = null; // the two-finger touch's start: {spread, zoom, at}
 let gestureZoom = null; // Safari's touchpad pinch reports scale relative to its start
 let labelForm = null; // {orig: name being edited, or null for a new label; name, description, color}
@@ -297,6 +298,7 @@ function zoomTo(z, cx, cy, at = canvasAt(cx, cy)) {
 	zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 	localStorage.setItem(ZOOM_KEY, zoom);
 	canvas.style.zoom = zoom;
+	canvas.style.setProperty('--zoom', zoom);
 	const r = canvas.getBoundingClientRect();
 	scrollBy(r.left + at[0] * zoom - cx, r.top + at[1] * zoom - cy);
 }

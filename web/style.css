@@ -133,7 +133,9 @@ input {
 
 #canvas {
 	position: relative;
-	min-width: 100%;
+}
+#canvas:has(> svg) {
+	padding: 0 calc(50vw / var(--zoom)) calc(50vh / var(--zoom)) 0; /* the far edges can reach the screen's middle; zoom scales the padding, hence the division */
 }
 #canvas > svg {
 	position: absolute;
