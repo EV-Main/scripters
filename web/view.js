@@ -59,6 +59,7 @@ function render() {
 
 	renderBar();
 	if (labelsDialog.open) renderLabels();
+	const at = [scrollX, scrollY]; // emptying the canvas drops its overscroll, and the browser clamps the scroll to that
 	canvas.replaceChildren();
 	cards = new Map();
 	if (graph.errors.length) {
@@ -213,6 +214,7 @@ function render() {
 	const mid = (Math.min(...first.map(p => p[cross] - p[crossSize] / 2)) + Math.max(...first.map(p => p[cross] + p[crossSize] / 2))) / 2;
 	canvas.style.setProperty('--head-left', `${mid}px`);
 	canvas.style.setProperty('--head-right', `${g.graph()[crossSize] - mid}px`);
+	scrollTo(...at);
 }
 
 function renderBar() {
