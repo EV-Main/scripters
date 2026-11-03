@@ -42,7 +42,7 @@ Hi, this is **Sam** from …
 - A node is **visible** iff it is reachable from a root through nodes whose tags all agree with the chosen variants.
 - After every reparse, path entries and variant values absent from the document are dropped.
 - Clicking a card or edge label appends it to the path; a variant-tagged card also chooses its tags.
-- New call (`n`) empties the path and starts calling; Esc while not editing empties the path and stops calling.
+- New call (`n`) empties the path and starts calling; Clear (Esc while not editing) empties the path and stops calling.
 - While calling, every click scrolls its card and the cards it leads to into view at once.
 - Backspace deletes the current card.
 

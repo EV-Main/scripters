@@ -248,7 +248,12 @@ function renderBar() {
 		renderLabels();
 		labelsDialog.showModal();
 	}).classList.add('push');
-	button('New call', 'clear the walked path; the view follows the call until Esc', 'n', newCall).classList.toggle('on', sel.calling);
+	button('New call', 'clear the walked path; the view follows the call until Clear', 'n', newCall).classList.toggle('on', sel.calling);
+	button('Clear', 'clear the walked path and end the call', 'Esc', () => {
+		sel.path = [];
+		sel.calling = false;
+		render();
+	});
 	const save = el('details', 'menu');
 	save.append(control(el('summary', '', 'Save'), 'download a copy; Ctrl+S overwrites the opened file', 's'));
 	const items = el('div', 'items');
@@ -605,12 +610,10 @@ document.addEventListener('keydown', e => {
 	} else if (labelsDialog.open) {
 		return;
 	} else if (e.key === 'Escape') { // document-level: the textarea loses focus on any click outside it
-		if (editing) editing = null;
-		else {
-			sel.path = [];
-			sel.calling = false;
-		}
-		render();
+		if (editing) {
+			editing = null;
+			render();
+		} else shortcuts.get('Esc').click();
 	} else if (editing || typing || !plain) {
 		return;
 	} else if (e.key in ARROWS) {
