@@ -1,17 +1,14 @@
 # Architecture
 ```
-script.md ──(cargo r -- build)──► script.html
-                                   ├─ <script type="text/markdown" id="src"> raw md </script>
-                                   ├─ inlined css, vendor/marked, vendor/dagre, model.js, view.js
-                                   └─ at runtime: md ─parse─► graph ─filter(selection)─► dagre layout ─► cards + svg edges
-edit card ─► splice section text into md string ─► reparse ─► rerender
-save      ─► same html with the #src block replaced   (Ctrl+S: overwrite via File System Access; Save ▾: download .html / .md)
+script.md ──bundle──► script.html (md embedded verbatim + inlined web/ assets)
+                         └─ runtime: md ─parse─► graph ─filter(selection)─► layout ─► cards + edges
+any edit ─► splice into md ─► reparse ─► rerender
+save     ─► same html with the embedded md replaced
 ```
 
-- `src/main.rs`: bundler only. Fills `web/template.html` placeholders with `web/` files and the markdown.
-- `web/model.js`: pure `parse(md)` and `visible(graph, selection)`. No DOM; also loaded by `node --test web/`.
-- `web/view.js`: rendering, layout, interaction, inline editing, session storage, saving.
-- `web/vendor/`: `marked`, `@dagrejs/dagre`; version and source on each file's first line.
+- `src/`: the bundler.
+- `web/model.js`: the format's parser and visibility rules; DOM-free.
+- `web/view.js`: everything the page does.
 
 Format and semantics: [spec/script_format.md](spec/script_format.md).
 
