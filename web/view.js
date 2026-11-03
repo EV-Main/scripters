@@ -74,7 +74,7 @@ function render() {
 	const current = sel.path.at(-1);
 	const walked = new Set(sel.path.slice(1).map((id, i) => `${sel.path[i]}\n${id}`));
 	const exits = new Set(edges.map(e => e.from));
-	const hue = e => (graph.edges.indexOf(e) * 137.508) % 360; // golden angle: consecutive edges land far apart, and the index survives filtering
+	const hue = e => ((graph.edges.indexOf(e) % 30) * 110) % 360; // 30 hues, 110° apart so consecutive edges differ
 
 	for (const n of nodes) {
 		const card = el('article', 'card');

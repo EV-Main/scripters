@@ -347,7 +347,7 @@ input {
 	font-size: 0.82rem;
 	line-height: 1.35;
 	text-align: center;
-	color: oklch(from var(--ink) l 0.06 var(--hue));
+	color: var(--ink);
 	background: var(--card);
 	border: 1px solid oklch(from var(--edge) l 0.09 var(--hue));
 	border-radius: 999px;
