@@ -112,7 +112,7 @@ service reading a script. We book straight into your calendar, and you hear ever
 - [That's different](#anything-else)
 - [Still skeptical](#not-interested)
 
-# Close
+# Close {offer=demo}
 Let's do this: I'll set up a 15-minute walkthrough with your numbers. Does **Thursday at 10** or
 **Friday at 2** work better?
 
@@ -120,8 +120,15 @@ Let's do this: I'll set up a 15-minute walkthrough with your numbers. Does **Thu
 - [Hesitates](#anything-else)
 - [Busy right now](#schedule-callback)
 
+# Close {offer=trial}
+Let's make it easy: we run Brightline on your overflow line **free for two weeks**. If it hasn't booked you a
+job by then, you switch it off. Want me to set that up today?
+
+- [Starts the trial](#booked)
+- [Hesitates](#anything-else)
+
 # Booked {.win}
-Perfect, you'll get an invite in a minute. Thanks for your time!
+Perfect, you'll get an email with the details in a minute. Thanks for your time!
 
 # Schedule callback
 No problem at all. When's a better time to reach you, later today or tomorrow morning?
