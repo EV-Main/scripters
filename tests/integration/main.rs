@@ -79,6 +79,7 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 
 	let started = Instant::now();
 	let url = loop {
+		//LOOP: bounded by the 10s assert
 		if let Ok(url) = std::fs::read_to_string(dir.join("url"))
 			&& url.ends_with('\n')
 		{
