@@ -104,11 +104,61 @@ function render() {
 		return label;
 	});
 
+	// variants of a slot share a rank: rank the graph with each slot contracted to one node, then lay out with those ranks
+	const slotOf = new Map(nodes.map(n => [n.id, n.slot]));
+	const inSlot = e => e.from !== e.to && slotOf.get(e.from) === slotOf.get(e.to);
+	const slots = new dagre.graphlib.Graph({ multigraph: true });
+	slots.setGraph({});
+	for (const n of nodes) slots.setNode(n.slot, {});
+	edges.forEach((e, i) => slotOf.get(e.from) !== slotOf.get(e.to) && slots.setEdge(slotOf.get(e.from), slotOf.get(e.to), {}, String(i)));
+	dagre.layout(slots);
+	const rank = id => slots.node(slotOf.get(id)).rank;
+	const ranker = lg => {
+		const top = Math.min(...nodes.map(n => rank(n.id)));
+		for (const v of lg.nodes()) {
+			assert(slotOf.has(v) || v === lg.graph().nestingRoot, `dagre ranks an unknown node ${v}`);
+			lg.node(v).rank = slotOf.has(v) ? rank(v) : top - 1;
+		}
+	};
+	const flipped = edges.map(e => rank(e.to) < rank(e.from)); // oriented as the slot ranking did, so dagre's own cycle breaking finds nothing to reverse
+
 	const g = new dagre.graphlib.Graph({ multigraph: true });
-	g.setGraph({ rankdir: RANKDIR, nodesep: 36 * spacing, ranksep: 60 * spacing, edgesep: 16 * spacing, marginx: 48, marginy: 48 });
+	g.setGraph({ rankdir: RANKDIR, ranker, nodesep: 36 * spacing, ranksep: 60 * spacing, edgesep: 16 * spacing, marginx: 48, marginy: 48 });
 	for (const n of nodes) g.setNode(n.id, { width: cards.get(n.id).offsetWidth, height: cards.get(n.id).offsetHeight });
-	edges.forEach((e, i) => g.setEdge(e.from, e.to, { width: labels[i].offsetWidth, height: labels[i].offsetHeight, labelpos: 'c' }, String(i)));
+	edges.forEach((e, i) => {
+		if (inSlot(e)) return;
+		const [v, w] = flipped[i] ? [e.to, e.from] : [e.from, e.to];
+		g.setEdge(v, w, { width: labels[i].offsetWidth, height: labels[i].offsetHeight, labelpos: 'c' }, String(i));
+	});
 	dagre.layout(g);
+
+	const [axis, cross, size, crossSize] = RANKDIR === 'TB' ? ['y', 'x', 'height', 'width'] : ['x', 'y', 'width', 'height'];
+	const lead = id => g.node(id)[axis] - g.node(id)[size] / 2;
+	const slotLead = new Map();
+	for (const n of nodes) slotLead.set(n.slot, Math.min(slotLead.get(n.slot) ?? Infinity, lead(n.id)));
+	const shift = new Map(nodes.map(n => [n.id, slotLead.get(n.slot) - lead(n.id)])); // stays inside the rank band: the slot's tallest card sets slotLead
+	for (const n of nodes) g.node(n.id)[axis] += shift.get(n.id);
+
+	const routes = edges.map((e, i) => {
+		if (inSlot(e)) {
+			// shortcut: a straight line across the rank, crosses any card between the two variants; route through dagre if that shows up
+			const [a, b] = [g.node(e.from), g.node(e.to)];
+			const dir = Math.sign(b[cross] - a[cross]);
+			const at = slotLead.get(slotOf.get(e.from)) + Math.min(a[size], b[size]) / 2;
+			const points = [{ [cross]: a[cross] + dir * a[crossSize] / 2, [axis]: at }, { [cross]: b[cross] - dir * b[crossSize] / 2, [axis]: at }];
+			return { points, x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
+		}
+		const { points, x, y } = g.edge(...(flipped[i] ? [e.to, e.from] : [e.from, e.to]), String(i));
+		if (flipped[i]) points.reverse();
+		if (e.from === e.to) {
+			const label = { x, y };
+			for (const p of [...points, label]) p[axis] += shift.get(e.from);
+			return { points, ...label };
+		}
+		points[0][axis] += shift.get(e.from);
+		points.at(-1)[axis] += shift.get(e.to);
+		return { points, x, y };
+	});
 
 	for (const n of nodes) {
 		const { x, y, width, height } = g.node(n.id);
@@ -120,7 +170,7 @@ function render() {
 	svg.setAttribute('height', height);
 	svg.innerHTML = '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>';
 	edges.forEach((e, i) => {
-		const { points, x, y } = g.edge(e.from, e.to, String(i));
+		const { points, x, y } = routes[i];
 		const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 		let d = `M${points[0].x},${points[0].y}`;
 		for (let j = 1; j < points.length - 1; j++) {
