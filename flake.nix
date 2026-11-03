@@ -53,15 +53,21 @@
               inherit pname;
               version = manifest.version;
 
-              buildInputs = with pkgs; [
-                openssl.dev
-              ];
-              nativeBuildInputs = with pkgs; [ pkg-config ];
+              RUSTC_WRAPPER = ""; # .cargo/config.toml sets sccache, absent in the sandbox
 
               cargoLock.lockFile = ./Cargo.lock;
               src = pkgs.lib.cleanSource ./.;
             };
           };
+
+        apps.default = {
+          type = "app";
+          program = "${pkgs.writeShellScript "open-script" ''
+            md=''${1:-examples/demo.md}
+            out=$(mktemp -d)/$(basename "''${md%.md}").html
+            exec ${self.packages.${system}.default}/bin/${pname} build "$md" -o "$out" --open
+          ''}";
+        };
 
         devShells.default =
           with pkgs;
