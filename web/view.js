@@ -200,6 +200,10 @@ function render() {
 	});
 	canvas.prepend(svg);
 	Object.assign(canvas.style, { width: `${width}px`, height: `${height}px` });
+	const top = Math.min(...nodes.map(n => rank(n.id)));
+	const first = nodes.filter(n => rank(n.id) === top).map(n => g.node(n.id));
+	const mid = (Math.min(...first.map(p => p[cross] - p[crossSize] / 2)) + Math.max(...first.map(p => p[cross] + p[crossSize] / 2))) / 2;
+	canvas.style.setProperty('--head-reach', `${g.graph()[crossSize] - mid}px`);
 }
 
 function renderBar() {

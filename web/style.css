@@ -135,7 +135,11 @@ input {
 	position: relative;
 }
 #canvas:has(> svg) {
-	padding: 0 calc(50vw / var(--zoom)) calc(50vh / var(--zoom)) 0; /* the far edges can reach the screen's middle; zoom scales the padding, hence the division */
+	--pad: calc(50vh / var(--zoom)); /* zoom scales the padding, hence the division */
+	padding: 0 var(--pad) var(--pad) 0;
+}
+[data-rankdir='TB'] #canvas:has(> svg) {
+	padding-right: max(var(--pad), calc(50vw / var(--zoom) - var(--head-reach))); /* the first rank's middle can reach the screen's middle; in LR that never exceeds --pad */
 }
 #canvas > svg {
 	position: absolute;
