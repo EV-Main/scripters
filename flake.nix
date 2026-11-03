@@ -62,11 +62,14 @@
 
         apps.default = {
           type = "app";
+          # cargo from PATH on the working tree, so it shares target/ with `cargo run`
           program = "${pkgs.writeShellScript "open-script" ''
+            set -e
+            root=$(git rev-parse --show-toplevel)
             direction=$1
-            md=''${2:-examples/demo.md}
+            md=''${2:-$root/examples/demo.md}
             out=$(mktemp -d)/$(basename "''${md%.md}").html
-            exec ${self.packages.${system}.default}/bin/${pname} build "$md" --direction "$direction" -o "$out" --open
+            exec cargo run -q --manifest-path "$root/Cargo.toml" -- build "$md" --direction "$direction" -o "$out" --open
           ''}";
         };
 
