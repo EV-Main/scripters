@@ -207,10 +207,7 @@ function edit(n) {
 	ta.addEventListener('input', fit);
 	ta.addEventListener('click', e => e.stopPropagation());
 	ta.addEventListener('keydown', e => {
-		if (e.key === 'Escape') {
-			editing = null;
-			render();
-		} else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
 			e.preventDefault();
 			const text = ta.value.trimEnd();
 			const next = md.slice(0, n.start) + (text && text + (n.end < md.length ? '\n\n' : '\n')) + md.slice(n.end);
@@ -252,6 +249,9 @@ document.addEventListener('keydown', e => {
 	if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
 		e.preventDefault();
 		saveHtml();
+	} else if (e.key === 'Escape' && editing) { // document-level: the textarea loses focus on any click outside it
+		editing = null;
+		render();
 	}
 });
 addEventListener('beforeunload', e => dirty && e.preventDefault());
