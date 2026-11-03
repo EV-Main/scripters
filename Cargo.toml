@@ -1,12 +1,24 @@
 cargo-features = ["codegen-backend"]
 [package]
 name = "call_scripters"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 description = "Call scripts as markdown, followed as a clickable conversation graph in one offline html file"
 license = "BlueOak-1.0.0"
 repository = "https://github.com/ev-main/call_scripters"
-include = ["src/main.rs", "LICENSE", "README.md", "web/style.css", "web/vendor/marked.min.js", "web/vendor/dagre.min.js", "web/model.js", "web/view.js", "web/template.html", ".cargo/*", "build.rs"]
+include = [
+    "src/main.rs",
+    "LICENSE",
+    "README.md",
+    "web/style.css",
+    "web/vendor/marked.min.js",
+    "web/vendor/dagre.min.js",
+    "web/model.js",
+    "web/view.js",
+    "web/template.html",
+    ".cargo/*",
+    "build.rs",
+]
 
 [package.metadata]
 
