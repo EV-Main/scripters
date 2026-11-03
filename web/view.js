@@ -208,7 +208,8 @@ function render() {
 	const top = Math.min(...nodes.map(n => rank(n.id)));
 	const first = nodes.filter(n => rank(n.id) === top).map(n => g.node(n.id));
 	const mid = (Math.min(...first.map(p => p[cross] - p[crossSize] / 2)) + Math.max(...first.map(p => p[cross] + p[crossSize] / 2))) / 2;
-	canvas.style.setProperty('--head-reach', `${g.graph()[crossSize] - mid}px`);
+	canvas.style.setProperty('--head-left', `${mid}px`);
+	canvas.style.setProperty('--head-right', `${g.graph()[crossSize] - mid}px`);
 }
 
 function renderBar() {
@@ -285,7 +286,11 @@ function newCall() {
 	sel.path = [];
 	sel.calling = true;
 	render();
-	scrollTo(0, 0);
+	toStart();
+}
+
+function toStart() {
+	scrollTo(canvas.getBoundingClientRect().left + scrollX, 0);
 }
 
 function glide(t) {
@@ -744,3 +749,4 @@ if (live)
 	})();
 
 render();
+if (performance.getEntriesByType('navigation')[0].type !== 'reload') toStart(); // a reload restores its scroll

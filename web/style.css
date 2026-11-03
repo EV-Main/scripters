@@ -136,10 +136,13 @@ input {
 }
 #canvas:has(> svg) {
 	--pad: calc(50vh / var(--zoom)); /* zoom scales the padding, hence the division */
+	margin-left: var(--pad); /* not padding: absolute cards ignore it */
 	padding: 0 var(--pad) var(--pad) 0;
 }
 [data-rankdir='TB'] #canvas:has(> svg) {
-	padding-right: max(var(--pad), calc(50vw / var(--zoom) - var(--head-reach))); /* the first rank's middle can reach the screen's middle; in LR that never exceeds --pad */
+	/* the first rank's middle can reach the screen's middle; in LR that never exceeds --pad */
+	margin-left: max(var(--pad), calc(50vw / var(--zoom) - var(--head-left)));
+	padding-right: max(var(--pad), calc(50vw / var(--zoom) - var(--head-right)));
 }
 #canvas > svg {
 	position: absolute;
