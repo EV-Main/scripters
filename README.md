@@ -7,6 +7,26 @@
 [<img alt="ci errors" src="https://img.shields.io/github/actions/workflow/status/@@REPO_SLUG@@/errors.yml?branch=main&style=for-the-badge&style=flat-square&label=errors&labelColor=420d09" height="20">](https://github.com/@@REPO_SLUG@@/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
 [<img alt="ci warnings" src="https://img.shields.io/github/actions/workflow/status/@@REPO_SLUG@@/warnings.yml?branch=main&style=for-the-badge&style=flat-square&label=warnings&labelColor=d16002" height="20">](https://github.com/@@REPO_SLUG@@/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
 
+Turns a markdown sales call script into one self-contained HTML file: each `# ` section becomes a card, response links become edges, and the caller clicks through the conversation graph during a live call, picking A/B variants as they go. The file works offline, can be edited inline, and saves a new copy of itself.
+<!-- markdownlint-disable -->
+<details>
+<summary>
+<h2>Installation</h2>
+</summary>
+
+TODO
+
+
+</details>
+<!-- markdownlint-restore -->
+
+## Usage
+```sh
+call_scripters build script.md --direction horizontal   # or vertical; writes script.html
+```
+Open the html in any browser. Click cards or responses to follow the call, pick variants and layout spacing in the top bar, double-click a card to edit its markdown (Ctrl+Enter commits, Esc cancels), Ctrl+S saves the edited file. Format: [docs/spec/script_format.md](docs/spec/script_format.md).
+
+`nix run . -- <horizontal|vertical> [script.md]` builds the script (the demo by default) into a temp file and opens it with `xdg-open`.
 
 
 

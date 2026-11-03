@@ -1,3 +1,4 @@
+#![feature(default_field_values)]
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -27,12 +28,6 @@ enum Command {
 	},
 }
 
-#[derive(Clone, Copy, ValueEnum)]
-enum Direction {
-	Horizontal,
-	Vertical,
-}
-
 fn main() -> Result<()> {
 	color_eyre::install()?;
 	match Cli::parse().command {
@@ -50,6 +45,12 @@ fn main() -> Result<()> {
 		}
 	}
 	Ok(())
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum Direction {
+	Horizontal,
+	Vertical,
 }
 
 fn bundle(title: &str, direction: Direction, md: &str) -> Result<String> {

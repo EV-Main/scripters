@@ -62,6 +62,7 @@
 
         apps.default = {
           type = "app";
+          meta.description = "<horizontal|vertical> [script.md]: build (the demo by default) to a temp file and xdg-open it";
           # cargo from PATH on the working tree, so it shares target/ with `cargo run`
           program = "${pkgs.writeShellScript "open-script" ''
             set -e

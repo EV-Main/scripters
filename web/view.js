@@ -3,6 +3,7 @@ const RANKDIR = document.documentElement.dataset.rankdir;
 if (!['LR', 'TB'].includes(RANKDIR)) throw new Error(`bundler wrote an unknown rankdir: ${RANKDIR}`);
 const DOUBLE_CLICK_MS = 400;
 const SCRIPT_TAG = /<\/?script/i; // would end or nest the embedding <script> block
+const SPACING_KEY = 'call_scripters:spacing'; // shared across scripts: a viewing preference, not part of a call
 const pristine = document.documentElement.outerHTML;
 const bar = document.getElementById('bar');
 const canvas = document.getElementById('canvas');
@@ -15,6 +16,8 @@ let editing = null;
 let lastClick = { id: null, t: 0 };
 let revealing = null;
 let cards = new Map();
+let spacing = Number(localStorage.getItem(SPACING_KEY) ?? 1);
+if (!(spacing > 0)) throw new Error(`corrupt stored spacing: ${localStorage.getItem(SPACING_KEY)}`);
 
 function el(tag, cls, html) {
 	const e = document.createElement(tag);
@@ -70,7 +73,7 @@ function render() {
 	});
 
 	const g = new dagre.graphlib.Graph({ multigraph: true });
-	g.setGraph({ rankdir: RANKDIR, nodesep: 36, ranksep: 120, edgesep: 16, marginx: 48, marginy: 48 });
+	g.setGraph({ rankdir: RANKDIR, nodesep: 36 * spacing, ranksep: 60 * spacing, edgesep: 16 * spacing, marginx: 48, marginy: 48 });
 	for (const n of nodes) g.setNode(n.id, { width: cards.get(n.id).offsetWidth, height: cards.get(n.id).offsetHeight });
 	edges.forEach((e, i) => g.setEdge(e.from, e.to, { width: labels[i].offsetWidth, height: labels[i].offsetHeight, labelpos: 'c' }, String(i)));
 	dagre.layout(g);
@@ -119,6 +122,16 @@ function renderBar() {
 		label.append(select);
 		bar.append(label);
 	}
+	const range = el('input');
+	Object.assign(range, { type: 'range', min: 0.1, max: 3, step: 0.1, value: spacing });
+	range.addEventListener('change', () => { // not `input`: render() rebuilds the bar, which would drop the slider mid-drag
+		spacing = Number(range.value);
+		localStorage.setItem(SPACING_KEY, spacing);
+		render();
+	});
+	const spacingLabel = el('label', 'dim', 'spacing ');
+	spacingLabel.append(range);
+	bar.append(spacingLabel);
 	const button = (text, action) => {
 		const b = el('button', '', text);
 		b.addEventListener('click', action);
