@@ -41,8 +41,9 @@
       {
         packages =
           let
-            rustc = rust;
-            cargo = rust;
+            build_rust = v_flakes.rs.build_nightly system;
+            rustc = build_rust;
+            cargo = build_rust;
             rustPlatform = pkgs.makeRustPlatform {
               inherit rustc cargo stdenv;
             };
@@ -78,6 +79,7 @@
               openssl
               pkg-config
               rust
+              nodejs
             ] ++ pre-commit-check.enabledPackages ++ combined.enabledPackages;
 
             env.RUST_BACKTRACE = 1;

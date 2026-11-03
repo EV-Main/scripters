@@ -1,33 +1,72 @@
-use std::{sync::Arc, time::Duration};
+use std::path::PathBuf;
 
-use clap::Parser;
-pub mod config;
-use config::{LiveSettings, SettingsFlags};
+use clap::{Parser, Subcommand};
+use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 
-fn main() {
-    v_utils::clientside!();
-    let cli = Cli::parse();
-    let live_settings = match LiveSettings::new(cli.settings, Duration::from_secs(5)) {
-        Ok(ls) => Arc::new(ls),
-        Err(e) => {
-            eprintln!("Error reading config: {e}");
-            for cause in e.chain().skip(1) {
-                eprintln!("  Caused by: {cause}");
-            }
-            return;
-        }
-    };
-    greet(live_settings);
-}
-
-#[derive(Parser, Default)]
+#[derive(Parser)]
 #[command(author, version = concat!(env!("CARGO_PKG_VERSION"), " (", env!("GIT_HASH"), ")"), about, long_about = None)]
 struct Cli {
-    #[command(flatten)]
-    settings: SettingsFlags,
+	#[command(subcommand)]
+	command: Command,
 }
 
-fn greet(settings: Arc<LiveSettings>) {
-    let config = settings.config();
-    println!("Hello, {}!", config.unwrap().example_greet);
+#[derive(Subcommand)]
+enum Command {
+	/// Bundle a markdown call script into one self-contained html file
+	Build {
+		md: PathBuf,
+		/// defaults to the md path with an `.html` extension
+		#[arg(short)]
+		o: Option<PathBuf>,
+	},
+}
+
+fn main() -> Result<()> {
+	color_eyre::install()?;
+	match Cli::parse().command {
+		Command::Build { md, o } => {
+			let src = std::fs::read_to_string(&md).wrap_err_with(|| format!("reading {}", md.display()))?;
+			let title = md.file_stem().ok_or_else(|| eyre!("{} has no file name", md.display()))?.to_string_lossy();
+			let out = o.unwrap_or_else(|| md.with_extension("html"));
+			std::fs::write(&out, bundle(&title, &src)?).wrap_err_with(|| format!("writing {}", out.display()))?;
+		}
+	}
+	Ok(())
+}
+
+fn bundle(title: &str, md: &str) -> Result<String> {
+	let lower = md.to_ascii_lowercase();
+	if lower.contains("<script") || lower.contains("</script") {
+		bail!("markdown contains a <script> tag; it would break out of the embedding <script> block");
+	}
+	let title = title.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+	let parts = [
+		("@TITLE@", title.as_str()),
+		("/*@STYLE@*/", include_str!("../web/style.css")),
+		("@SRC@", md),
+		("/*@MARKED@*/", include_str!("../web/vendor/marked.min.js")),
+		("/*@DAGRE@*/", include_str!("../web/vendor/dagre.min.js")),
+		("/*@MODEL@*/", include_str!("../web/model.js")),
+		("/*@VIEW@*/", include_str!("../web/view.js")),
+	];
+	let template = include_str!("../web/template.html");
+	let mut at: Vec<(usize, &str, &str)> = parts
+		.iter()
+		.map(|&(placeholder, content)| {
+			let found: Vec<usize> = template.match_indices(placeholder).map(|(i, _)| i).collect();
+			assert_eq!(found.len(), 1, "template must hold `{placeholder}` exactly once");
+			(found[0], placeholder, content)
+		})
+		.collect();
+	at.sort_by_key(|&(i, ..)| i);
+	let mut html = String::with_capacity(template.len() + parts.iter().map(|(_, c)| c.len()).sum::<usize>());
+	let mut cursor = 0;
+	for (i, placeholder, content) in at {
+		assert!(!content.to_ascii_lowercase().contains("</script"), "`{placeholder}` content would close its <script>");
+		html.push_str(&template[cursor..i]);
+		html.push_str(content);
+		cursor = i + placeholder.len();
+	}
+	html.push_str(&template[cursor..]);
+	Ok(html)
 }

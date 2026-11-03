@@ -4,8 +4,9 @@ name = "call_scripters"
 version = "0.1.0"
 edition = "2024"
 
-[package.metadata.docs.rs]
-cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
+[dependencies]
+clap = { version = "^4.5.4", features = ["derive"] }
+color-eyre = "^0.6.5"
 
 [lints.clippy]
 # Stable
@@ -21,13 +22,11 @@ get_first = "allow"
 get_last_with_len = "allow"
 manual_is_multiple_of = "allow"
 
+[lints.cargo]
+non_kebab_case_bins = "allow"
+
+[lints.rust]
+unused_features = "allow"
 
 [profile.dev.package.call_scripters]
 debug = true # global default is line-tables-only
-
-[dependencies]
-derive-new = "^0"
-color-eyre = "^0.6.5"
-miette = { version = "^7.6.0", features = ["fancy", "serde", "syntect-highlighter"] }
-clap = { version = "^4.5.4", features = ["derive"] }
-v_utils = { version = "^2.15.0", features = ["io", "macros", "cli"] }
