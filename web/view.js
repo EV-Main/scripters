@@ -22,6 +22,7 @@ let md = document.getElementById('src').textContent;
 let graph = parse(md);
 let sel = JSON.parse(sessionStorage.getItem(KEY) ?? '{"variants":{},"path":[],"calling":false}');
 let dirty = false;
+let live = document.documentElement.dataset.live; // version of the md a `watch` server built this page from; absent in a built file
 let editing = null;
 let lastClick = { id: null, t: 0 };
 let cards = new Map();
@@ -255,7 +256,7 @@ function renderBar() {
 		render();
 	});
 	const save = el('details', 'menu');
-	save.append(control(el('summary', '', 'Save'), 'download a copy; Ctrl+S overwrites the opened file', ['s']));
+	save.append(control(el('summary', '', 'Save'), `download a copy; Ctrl+S ${live ? 'writes the md' : 'overwrites the opened file'}`, ['s']));
 	const items = el('div', 'items');
 	button('.html', 'this page, with the current script', [], () => download(`${document.title}.html`, html(), 'text/html'), items);
 	button('.md', 'the script alone', [], () => download(`${document.title}.md`, md, 'text/markdown'), items);
@@ -561,11 +562,23 @@ function html() {
 	assert(!SCRIPT_TAG.test(md), 'markdown contains a <script> tag; commit should have rejected it');
 	const doc = new DOMParser().parseFromString(pristine, 'text/html');
 	doc.getElementById('src').textContent = md;
+	delete doc.documentElement.dataset.live; // a downloaded copy is not served
 	return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
 }
 
 // a page on file:// cannot learn its own file handle: the user picks the file once, then it is remembered per url
 async function overwrite() {
+	if (live) {
+		const r = await fetch('/', { method: 'PUT', headers: { 'If-Match': live }, body: md });
+		if (!r.ok) {
+			alert(await r.text());
+			return;
+		}
+		live = await r.text();
+		dirty = false;
+		renderBar();
+		return;
+	}
 	if (!window.showSaveFilePicker) {
 		alert('This browser cannot overwrite files; download a copy with Save instead.');
 		return;
@@ -669,5 +682,17 @@ addEventListener(
 for (const t of ['touchend', 'touchcancel']) addEventListener(t, e => e.touches.length < 2 && (pinch = null));
 labelsDialog.addEventListener('close', () => (labelForm = null));
 addEventListener('beforeunload', e => dirty && e.preventDefault());
+if (live)
+	(async function poll() {
+		let version;
+		try {
+			version = await (await fetch('/version')).text();
+		} catch (e) {
+			if (e instanceof TypeError) return; // the watch stopped serving
+			throw e;
+		}
+		if (version !== live && !dirty) location.reload(); // unsaved edits stay; their Ctrl+S is refused as a conflict
+		else setTimeout(poll, 300);
+	})();
 
 render();

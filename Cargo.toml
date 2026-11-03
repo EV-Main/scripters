@@ -30,6 +30,7 @@ pkg-fmt = "tgz"
 [dependencies]
 clap = { version = "^4.5.4", features = ["derive"] }
 color-eyre = "^0.6.5"
+tiny_http = "^0.12.0"
 
 [lints.clippy]
 # Stable

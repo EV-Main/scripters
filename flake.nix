@@ -64,13 +64,13 @@
 
         apps.default = {
           type = "app";
-          meta.description = "[script.md] [build flags]: build (the demo by default) to a temp file and xdg-open it";
+          meta.description = "[script.md] [watch flags]: watch (the demo by default)";
           # cargo from PATH on the working tree, so it shares target/ with `cargo run`
           program = "${pkgs.writeShellScript "open-script" ''
             set -e
             root=$(git rev-parse --show-toplevel)
             md=''${1:-$root/examples/demo.md}
-            exec cargo run -q --manifest-path "$root/Cargo.toml" -- "$md" --open "''${@:2}"
+            exec cargo run -q --manifest-path "$root/Cargo.toml" -- watch "$md" "''${@:2}"
           ''}";
         };
 
@@ -83,7 +83,7 @@
             export FONTCONFIG_FILE=${pkgs.makeFontsConf { fontDirectories = [ pkgs.dejavu_fonts ]; }}
             root=$(git rev-parse --show-toplevel)
             html=$(mktemp -d)/demo.html
-            cargo run -q --manifest-path "$root/Cargo.toml" -- "$root/examples/demo.md" -o "$html"
+            cargo run -q --manifest-path "$root/Cargo.toml" -- build "$root/examples/demo.md" -o "$html"
             node "$root/examples/film.mjs" "$html" "''${1:-$root/docs/.readme_assets/assets/walkthrough.webp}"
           ''}";
         };

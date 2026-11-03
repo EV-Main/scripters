@@ -6,15 +6,18 @@ script.md ──bundle──► script.html (md embedded verbatim + inlined web/
                          └─ runtime: md ─parse─► graph ─filter(selection)─► layout ─► cards + edges
 any edit ─► splice into md ─► reparse ─► rerender
 save     ─► same html with the embedded md replaced
+
+watch: script.md ─bundle per request─► http://127.0.0.1 page ─poll /version─► reload
+       page Ctrl+S ─PUT md─► script.md   (refused if script.md changed since the page loaded)
 ```
 
-- `src/`: the bundler.
+- `src/`: the bundler, and the `watch` server.
 - `web/model.js`: the format's parser and visibility rules; DOM-free.
 - `web/view.js`: everything the page does.
 
 Format and semantics: [spec/script_format.md](spec/script_format.md).
 
 ## Invariants
-1. The output is a single file that works offline on `file://`: no server, no CDN, no external references.
+1. The output is a single file that works offline on `file://`: no server, no CDN, no external references. `watch` serves that same file, marked `data-live`; nothing in the page depends on being served.
 2. The embedded markdown is the only source of truth. Edits splice into it and reparse; there is no graph→md serializer.
 3. `web/model.js` is the only parser of the format. Rust bundles and never parses.
