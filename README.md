@@ -9,7 +9,7 @@
 
 🌐 **[Live demo](https://ev-main.github.io/call_scripters/)** — the demo script, built; no setup, runs in the browser.
 
-Turns a markdown sales call script into one self-contained HTML file: each `# ` section becomes a card, response links become edges, and the caller clicks through the conversation graph during a live call, picking A/B variants as they go. The file works offline, can be edited inline, and saves a new copy of itself.
+Turns a markdown sales call script into one self-contained HTML file: each heading's section becomes a card, response links become edges, and the caller clicks through the conversation graph during a live call, picking A/B variants as they go. The file works offline, can be edited inline, and saves a new copy of itself.
 
 ![a call walked through the demo script](docs/.readme_assets/assets/walkthrough.webp)
 
@@ -36,7 +36,7 @@ nix profile install github:ev-main/call_scripters # substituted from valeratrade
 call_scripters build script.md --direction vertical   # or horizontal; writes /tmp/call_scripters/script.html (-o to override)
 call_scripters watch script.md   # serves it on localhost and opens it; the page reloads on each save of the md, its Ctrl+S writes the md
 ```
-Open the html in any browser. Click cards or responses to follow the call, pick variants, language and layout spacing in the top bar, zoom with − / + (`-`, `+` or `=`), Ctrl+scroll or a pinch, double-click a card to edit its markdown (Ctrl+Enter commits, Esc cancels), `n` starts a new call: the view jumps to each card you click until Clear (Esc outside an edit) ends the call and clears the walked path; × or Backspace deletes the current card, Labels (`l`) in the top bar defines labels that cards carry. Ctrl+S overwrites the opened file (Chromium asks for it once; under `watch`, the md), Save ▾ (`s`) downloads a copy as .html or .md; hovering a bar control shows its hint and keys; ☾/☀ switches theme. Format: [docs/spec/script_format.md](docs/spec/script_format.md).
+Open the html in any browser. Click cards or responses to follow the call, pick variants and layout spacing in the top bar, zoom with − / + (`-`, `+` or `=`), Ctrl+scroll or a pinch, double-click a card to edit its markdown (Ctrl+Enter commits, Esc cancels), `n` starts a new call: the view jumps to each card you click until Clear (Esc outside an edit) ends the call and clears the walked path; × or Backspace deletes the current card, Labels (`l`) in the top bar defines labels that cards carry. Ctrl+S overwrites the opened file (Chromium asks for it once; under `watch`, the md), Save ▾ (`s`) downloads a copy as .html or .md; hovering a bar control shows its hint and keys; ☾/☀ switches theme. Format: [docs/spec/script_format.md](docs/spec/script_format.md).
 
 `nix run . -- [script.md] [--direction horizontal]` watches the script (the demo by default).
 

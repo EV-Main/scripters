@@ -13,7 +13,7 @@ Hi, this is **Sam** from …
 ```
 
 ## Nodes
-- Each `# ` (h1) heading outside a code fence and a language scope starts a node. Its source span runs to the next such heading.
+- Each ATX heading (`#` to `######`, any level) outside a code fence and a language scope starts a node; levels only shape the md elsewhere. Its source span runs to the next such heading.
 - Non-blank text before the first heading, other than label definitions, is an error.
 - A trailing `{k=v k2=v2 .label}` block on the heading is stripped from the title. Its `k=v` tokens are the node's variant tag; `.name` tokens are labels.
 - The GitHub anchor slug of the remaining title is the node's **slot**. Variants of one step share a title, so `# Opening {opener=warm}` and `# Opening {opener=cold}` both fill `#opening`.
@@ -34,7 +34,7 @@ Hi, this is **Sam** from …
 ## Languages
 - Inside a section, a line `<div lang="code">` opens a language scope and the next `</div>` line closes it; `code` is `[\w-]+`. Both lines are removed from the card body. The md renders as plain html divs elsewhere.
 - Body lines and responses inside the scope belong to that language; everything outside it belongs to every language.
-- A `# ` heading inside the scope is the card's title in that language. It starts no node: slot, tags and labels come from the main heading alone. A second title for one language in a section, or a `{…}` block on it, is an error.
+- A heading inside the scope is the card's title in that language. It starts no node: slot, tags and labels come from the main heading alone. A second title for one language in a section, or a `{…}` block on it, is an error.
 - Languages are the union of the scopes' codes, in order of first appearance; nothing is declared.
 - A scope inside another, or one never closed, is an error.
 

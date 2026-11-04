@@ -50,6 +50,26 @@ test('slots, tags and response edges', () => {
 	);
 });
 
+test('every heading level starts a node; seven `#` are body', () => {
+	checkParse(
+		`
+		# A
+		- [x](#b)
+		## B
+		- [y](#c)
+		###### C ###
+		####### not a heading
+		`,
+		`
+		node a "A" root body=""
+		node b "B" body=""
+		node c "C" body="####### not a heading"
+		edge a -[x]-> b
+		edge b -[y]-> c
+		`,
+	);
+});
+
 test('canonical id sorts tag keys', () => {
 	checkParse(
 		`
@@ -79,7 +99,7 @@ test('parse errors', () => {
 		`,
 		`
 		node a "A" root body=""
-		error L1: text before the first \`# \` heading
+		error L1: text before the first heading
 		`,
 	);
 	checkParse(
@@ -122,7 +142,7 @@ test('parse errors', () => {
 		error L4: "C" is unreachable from any root
 		`,
 	);
-	checkParse('', 'error L1: no `# ` headings');
+	checkParse('', 'error L1: no headings');
 	checkParse('# A {k=1 k=2}\n', 'node a{k=2} "A" root body=""\ndim k: 2\nerror L1: tag key `k` given twice');
 });
 
@@ -156,7 +176,7 @@ test('labels are defined before the first heading and attached with `.name`', ()
 		label hot oklch(0.6 0.2 25) ""
 		node a "A" root .warm .hot body=""
 		error L2: label \`hot\` defined twice
-		error L3: text before the first \`# \` heading
+		error L3: text before the first heading
 		error L4: label \`.hot\` given twice
 		error L4: unknown label \`.warm\`
 		`,
@@ -181,7 +201,7 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		# A
 		<div lang="ru">
 
-		# А ## 
+		### А ## 
 		Привет
 		- [Да](#b)
 		</div>

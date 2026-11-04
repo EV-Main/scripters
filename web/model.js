@@ -24,7 +24,7 @@ function parse(md) {
 		} else if (f) {
 			fence = f[1];
 		} else {
-			const h = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/d.exec(line.text);
+			const h = /^ {0,3}#{1,6}(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/d.exec(line.text);
 			if (h && lang) {
 				const t = heading(h[1] ?? '', 0, line.start, lineNo, errors);
 				if (Object.keys(t.tags).length || t.labels.length) errors.push({ line: lineNo, msg: 'tags and labels go on the main heading' });
@@ -63,11 +63,11 @@ function parse(md) {
 			}
 		}
 		if (node) node.body.push({ text: line.text, lang: lang?.code ?? null });
-		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text before the first `# ` heading' });
+		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text before the first heading' });
 	});
 	if (lang) errors.push({ line: lang.line, msg: `\`<div lang="${lang.code}">\` not closed` });
 	if (node) node.end = md.length;
-	if (nodes.length === 0 && errors.length === 0) errors.push({ line: 1, msg: 'no `# ` headings' });
+	if (nodes.length === 0 && errors.length === 0) errors.push({ line: 1, msg: 'no headings' });
 
 	const byId = new Map();
 	const slots = new Map();
