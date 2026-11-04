@@ -18,7 +18,7 @@ watch: script.scr.md ─bundle per request─► http://127.0.0.1 page ─poll /
 - `web/view.js`: everything the page does.
 
 ## Invariants
-<!-- embed spec/page.md -->
+<!-- embed spec/page.md {{{always-->
 > [spec/page.md](spec/page.md)
 >
 > r[page.standalone]
@@ -26,7 +26,7 @@ watch: script.scr.md ─bundle per request─► http://127.0.0.1 page ─poll /
 >
 > r[page.md-truth]
 > The embedded md MUST be the only source of truth: an edit splices into it and reparses. Nothing serializes the graph back to md.
-<!-- /embed -->
+<!-- /embed }}}always-->
 
 ## Format
 A script is a `<name>.scr.md` file; its page is titled `<name>`.

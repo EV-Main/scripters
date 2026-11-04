@@ -19,48 +19,7 @@
       let
         pkgs = import v_flakes.default_nixpkgs { inherit system; };
         rust = v_flakes.rs.default_nightly system;
-        preCommit = v_flakes.files.preCommit { inherit pkgs; };
-        # fills each `<!-- embed path -->` … `<!-- /embed -->` block with the md at `path`, relative to the embedding md, as a quote
-        md-embed = pkgs.writeShellApplication {
-          name = "md-embed";
-          runtimeInputs = [ pkgs.gawk pkgs.git ];
-          text = ''
-            git grep -l '^<!-- embed ' -- '*.md' | while read -r md; do
-              gawk -v dir="$(dirname "$md")" '
-                /^<!-- \/embed -->$/ { inside = 0 }
-                inside { next }
-                { print }
-                /^<!-- embed .+ -->$/ {
-                  path = substr($0, 12, length($0) - 15)
-                  print "> [" path "](" path ")"
-                  first = 1
-                  while ((got = (getline line < (dir "/" path))) > 0) {
-                    if (first && line ~ /^# /) { first = 0; continue } # the link above titles it
-                    first = 0
-                    print (line == "" ? ">" : "> " line)
-                  }
-                  if (got < 0) { print FILENAME ": no " dir "/" path > "/dev/stderr"; exit 1 }
-                  close(dir "/" path)
-                  inside = 1
-                }
-                END { if (inside) { print FILENAME ": <!-- embed --> never closed" > "/dev/stderr"; exit 1 } }
-              ' "$md" > "$md.embedded" || { rm "$md.embedded"; exit 1; }
-              mv "$md.embedded" "$md"
-              git add "$md"
-            done
-          '';
-        };
-        pre-commit-check = pre-commit-hooks.lib.${system}.run (preCommit // {
-          hooks = preCommit.hooks // {
-            md-embed = {
-              enable = true;
-              name = "md embeds";
-              files = "\\.md$";
-              pass_filenames = false;
-              entry = pkgs.lib.getExe md-embed;
-            };
-          };
-        });
+        pre-commit-check = pre-commit-hooks.lib.${system}.run (v_flakes.files.preCommit { inherit pkgs; });
         stdenv = if pkgs.stdenv.hostPlatform.isLinux then pkgs.stdenvAdapters.useMoldLinker pkgs.stdenv else pkgs.stdenv;
 
         rs = v_flakes.rs { inherit pkgs rust; };
@@ -97,6 +56,8 @@
               version = manifest.version;
 
               RUSTC_WRAPPER = ""; # .cargo/config.toml sets sccache, absent in the sandbox
+
+              doCheck = false; # the integration tests drive a chromium, absent in the sandbox
 
               cargoLock.lockFile = ./Cargo.lock;
               src = pkgs.lib.cleanSource ./.;
