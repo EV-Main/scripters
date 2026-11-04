@@ -1,14 +1,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parse, visible } = require('./model.js');
+const { parse, visible, inLang } = require('./model.js');
 
 const dedent = s => s.replace(/^\n/, '').replace(/^\t+/gm, '');
 
 function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
-		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')} body=${JSON.stringify(n.body.trim())}`),
-		...graph.edges.map(e => `edge ${e.from} -[${e.label}]-> ${e.to}`),
+		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')} body=${JSON.stringify(n.body.map(l => (l.lang ? `{${l.lang}}${l.text}` : l.text)).join('\n').trim())}`),
+		...graph.edges.map(e => `edge ${e.from} -[${e.label}]-> ${e.to}${e.lang ? ` lang=${e.lang}` : ''}`),
+		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
 		...graph.errors.map(e => `error L${e.line}: ${e.msg}`),
 	].join('\n');
@@ -18,10 +19,10 @@ function checkParse(md, expected) {
 	assert.equal(render(parse(dedent(md))), dedent(expected).trim());
 }
 
-function checkVisible(md, variants, expected) {
+function checkVisible(md, selection, expected) {
 	const graph = parse(dedent(md));
 	assert.deepEqual(graph.errors, []);
-	assert.deepEqual([...visible(graph, { variants })].sort(), expected.sort());
+	assert.deepEqual([...visible(graph, selection)].sort(), expected.sort());
 }
 
 test('slots, tags and response edges', () => {
@@ -174,6 +175,68 @@ test('spans locate the text an edit replaces', () => {
 	assert.equal(md.slice(g.labels[0].start, g.labels[0].end), '[l]: <oklch(0 0 0)>\n');
 });
 
+test('`<div lang>` scopes body lines and responses to a language', () => {
+	checkParse(
+		`
+		# A
+		<div lang="ru">
+
+		Привет
+		- [Да](#b)
+		</div>
+		<div lang="en">
+		Hi
+		- [Yes](#b)
+		</div>
+
+		> both
+		- [Skip](#b)
+		# B
+		`,
+		`
+		node a "A" root body="{ru}\\n{ru}Привет\\n{en}Hi\\n\\n> both"
+		node b "B" body=""
+		edge a -[Да]-> b lang=ru
+		edge a -[Yes]-> b lang=en
+		edge a -[Skip]-> b
+		langs: ru en
+		`,
+	);
+	checkParse(
+		`
+		# A
+		<div lang="ru">
+		<div lang="en">
+		</div>
+		<div lang="de">
+		# B
+		`,
+		`
+		node a "A" root body=""
+		node b "B" root body=""
+		langs: ru en de
+		error L3: \`<div lang>\` inside another
+		error L5: \`<div lang="de">\` not closed before the next heading
+		`,
+	);
+});
+
+test('a language hides the other languages\' responses and what only they reach', () => {
+	const md = `
+		# A
+		<div lang="ru">
+		- [Да](#b)
+		</div>
+		- [Skip](#c)
+		# B
+		# C
+	`;
+	checkVisible(md, {}, ['a', 'b', 'c']);
+	checkVisible(md, { lang: 'en' }, ['a', 'c']);
+	checkVisible(md, { lang: 'ru' }, ['a', 'b', 'c']);
+	assert.equal(inLang({ lang: 'ru' }, { lang: 'en' }), false);
+});
+
 const VARIANTS = `
 	# Intro
 	- [go](#opening)
@@ -208,20 +271,20 @@ test('unselected dims admit every variant; cycles and multiple roots', () => {
 });
 
 test('excluded variant hides its subtree; slot link resolves to the selected variant', () => {
-	checkVisible(VARIANTS, { opener: 'warm' }, ['intro', 'opening{opener=warm}', 'warm-pitch', 'close', 'price-objection']);
+	checkVisible(VARIANTS, { variants: { opener: 'warm' } }, ['intro', 'opening{opener=warm}', 'warm-pitch', 'close', 'price-objection']);
 });
 
 test('rejoin stays visible through any visible parent', () => {
-	checkVisible(VARIANTS, { opener: 'cold' }, ['intro', 'opening{opener=cold}', 'cold-pitch', 'objection', 'close', 'price-objection']);
+	checkVisible(VARIANTS, { variants: { opener: 'cold' } }, ['intro', 'opening{opener=cold}', 'cold-pitch', 'objection', 'close', 'price-objection']);
 });
 
 test('variant root is filtered like any other node', () => {
 	const md = `
-		# Intro {lang=en}
+		# Intro {opener=a}
 		- [x](#end)
-		# Intro {lang=de}
+		# Intro {opener=b}
 		- [y](#end)
 		# End
 	`;
-	checkVisible(md, { lang: 'de' }, ['intro{lang=de}', 'end']);
+	checkVisible(md, { variants: { opener: 'b' } }, ['intro{opener=b}', 'end']);
 });

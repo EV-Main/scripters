@@ -3,13 +3,44 @@
 [rework]: <oklch(0.86 0.09 85)> "Wording needs another pass"
 
 # Introduction
-Hi, this is **Sam** from Brightline. Did I catch you at an okay time?
+<div lang="en">
 
-> Pause. Let them answer before going on.
+Hi, this is **Sam** from Brightline. Did I catch you at an okay time?
 
 - [Has a minute](#opening)
 - [Busy right now](#schedule-callback)
 - [Who is this?](#who-is-this)
+
+</div>
+<div lang="ru">
+
+Здравствуйте, это **Сэм** из Brightline. Удобно сейчас говорить?
+
+- [Есть минута](#opening)
+- [Сейчас занят](#schedule-callback)
+- [Кто это?](#who-is-this)
+
+</div>
+<div lang="fr">
+
+Bonjour, ici **Sam** de Brightline. Je vous appelle à un bon moment ?
+
+- [A une minute](#opening)
+- [Occupé là](#schedule-callback)
+- [Qui est-ce ?](#who-is-this)
+
+</div>
+<div lang="de">
+
+Hallo, hier ist **Sam** von Brightline. Passt es Ihnen gerade?
+
+- [Hat kurz Zeit](#opening)
+- [Gerade beschäftigt](#schedule-callback)
+- [Wer ist da?](#who-is-this)
+
+</div>
+
+> Pause. Let them answer before going on.
 
 # Who is this?
 Fair question. I'm Sam with **Brightline**: we help service teams cut missed calls. I'll be quick.

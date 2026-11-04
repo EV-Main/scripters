@@ -31,18 +31,25 @@ Hi, this is **Sam** from …
 - `.name` in a heading's `{…}` attaches the label. Labels annotate only: they change neither id, slot nor visibility.
 - Defining a label twice, attaching an undefined one, or attaching one twice is an error.
 
+## Languages
+- Inside a section, a line `<div lang="code">` opens a language scope and the next `</div>` line closes it; `code` is `[\w-]+`. Both lines are removed from the card body. The md renders as plain html divs elsewhere.
+- Body lines and responses inside the scope belong to that language; everything outside it belongs to every language.
+- Languages are the union of the scopes' codes, in order of first appearance; nothing is declared.
+- A scope inside another, or one not closed before the next heading, is an error.
+
 ## Editing
 - An edit whose result has errors is refused.
 - Deleting a card removes its section. If it was the last node of its slot, the responses into that slot go with it.
 - Renaming or deleting a label rewrites every heading carrying it.
 - Undo (`u`, Ctrl+Z) and redo (`U`, Ctrl+Y, Ctrl+Shift+Z) step through this page's edits; the history lives in page memory, not the md.
-- Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response, or at the end of its section if it has none.
+- Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside a language scope, or at the end of its section if it has none.
 
 ## Selection
-`{ variants: {dim → value}, path: [nodeId], calling: bool }`, kept in `sessionStorage`. A dim without a value is not chosen yet and admits every variant.
+`{ variants: {dim → value}, lang, path: [nodeId], calling: bool }`, kept in `sessionStorage`. A dim without a value is not chosen yet and admits every variant.
 
-- A node is **visible** iff it is reachable from a root through nodes whose tags all agree with the chosen variants.
-- After every reparse, path entries and variant values absent from the document are dropped.
+- A node is **visible** iff it is reachable from a root through nodes whose tags all agree with the chosen variants, along responses in the chosen language.
+- Cards show only the chosen language's lines. Unlike variants, a language is always chosen while the document has any.
+- After every reparse, path entries and variant values absent from the document are dropped; an absent language becomes the document's first.
 - Clicking a card or edge label appends it to the path; a variant-tagged card also chooses its tags.
 - New call (`n`) empties the path and starts calling; Clear (Esc while not editing) empties the path and stops calling.
 - While calling, every click scrolls its card and the cards it leads to into view at once.

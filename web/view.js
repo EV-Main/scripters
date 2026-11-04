@@ -58,6 +58,7 @@ function render() {
 	const ids = new Set(graph.nodes.map(n => n.id));
 	sel.path = sel.path.filter(id => ids.has(id));
 	for (const [k, v] of Object.entries(sel.variants)) if (!graph.dims[k]?.includes(v)) delete sel.variants[k];
+	if (!graph.langs.includes(sel.lang)) sel.lang = graph.langs[0]; // the document's first language; none when it has no `<div lang>`
 	sessionStorage.setItem(KEY, JSON.stringify(sel));
 
 	renderBar();
@@ -73,7 +74,7 @@ function render() {
 
 	const shown = visible(graph, sel);
 	const nodes = graph.nodes.filter(n => shown.has(n.id));
-	const edges = graph.edges.filter(e => shown.has(e.from) && shown.has(e.to));
+	const edges = graph.edges.filter(e => shown.has(e.from) && shown.has(e.to) && inLang(e, sel));
 	const current = sel.path.at(-1);
 	const walked = new Set(sel.path.slice(1).map((id, i) => `${sel.path[i]}\n${id}`));
 	const exits = new Set(edges.map(e => e.from));
@@ -110,7 +111,7 @@ function render() {
 		stick.title = 'drag onto another card to add a response to it';
 		stick.addEventListener('click', e => e.stopPropagation());
 		stick.addEventListener('pointerdown', e => drag(e, n));
-		card.append(del, stick, head, el('div', 'body', marked.parse(n.body)));
+		card.append(del, stick, head, el('div', 'body', marked.parse(n.body.filter(l => inLang(l, sel)).map(l => l.text).join('\n'))));
 		card.addEventListener('click', () => click(n));
 		canvas.append(card);
 		cards.set(n.id, card);
@@ -233,6 +234,17 @@ function renderBar() {
 			render();
 		});
 		const label = el('label', 'dim', `${dim} `);
+		label.append(select);
+		bar.append(label);
+	}
+	if (graph.langs.length) {
+		const select = el('select');
+		for (const l of graph.langs) select.append(new Option(l, l, false, sel.lang === l));
+		select.addEventListener('change', () => {
+			sel.lang = select.value;
+			render();
+		});
+		const label = el('label', 'dim', 'language ');
 		label.append(select);
 		bar.append(label);
 	}
@@ -589,7 +601,7 @@ function drag(down, n) {
 // the new response goes after `n`'s last one, or ends its section
 function connect(n, slot) {
 	const response = `- [TODO](#${slot})`;
-	const exits = graph.edges.filter(e => e.from === n.id);
+	const exits = graph.edges.filter(e => e.from === n.id && !e.lang); // after a scoped one it would land inside its `<div lang>`
 	const at = exits.length ? Math.max(...exits.map(e => e.end)) : n.start + md.slice(n.start, n.end).trimEnd().length;
 	const text = !exits.length ? `\n\n${response}` : md[at - 1] === '\n' ? `${response}\n` : `\n${response}`;
 	const errors = commit(splice([{ start: at, end: at, text }]));
