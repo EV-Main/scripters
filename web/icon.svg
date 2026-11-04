@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1280" fill="none">
+  <title>Branching speech bubble</title>
+  <path fill="#001e4e" d="M620 156C350 156 132 365 132 622c0 124 49 237 128 320l-58 143c-10 25 8 44 32 32l165-82c67 34 142 52 221 52 269 0 487-208 487-465S889 156 620 156Z"/>
+  <g stroke="#fff" stroke-width="88" stroke-linecap="round">
+    <path d="M365 635h126c122 0 113-183 243-183h94"/>
+    <path d="M491 635c122 0 113 172 243 172h94"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="365" cy="635" r="108"/>
+    <circle cx="825" cy="435" r="107"/>
+    <circle cx="825" cy="817" r="108"/>
+  </g>
+</svg>

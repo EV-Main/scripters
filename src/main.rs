@@ -181,8 +181,10 @@ fn bundle(title: &str, direction: Direction, md: &str, live: Option<&str>) -> Re
 	}
 	let title = title.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
 	let live = live.map(|v| format!(" data-live=\"{v}\"")).unwrap_or_default();
+	let icon = include_str!("../web/icon.svg").replace('"', "'").replace('#', "%23"); // data: url, inside a "-quoted href
 	let parts = [
 		("@TITLE@", title.as_str()),
+		("@ICON@", icon.as_str()),
 		("@LIVE@", live.as_str()),
 		(
 			"@RANKDIR@",
