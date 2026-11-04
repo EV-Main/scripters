@@ -48,8 +48,8 @@ Hi, this is **Sam** from …
 - A heading inside language scopes alone is the card's title in that language. It starts no node: slot and labels come from the main heading alone. A second title for one language in a section, a `{…}` block on it, or a heading inside a variant scope is an error.
 
 ## Marks
-- A line `[dim=value]: #`, `[lang="code"]: #` or `[layout="dfs"]: #` outside any section marks a chosen variant value, the chosen language, or the layout: a link reference definition, so it renders as nothing elsewhere.
-- A page with no selection of its own starts from the marks; `build --bfs` and `watch --bfs` outrank the layout mark.
+- A line `[dim=value]: #`, `[lang="code"]: #` or `[layout="bfs"]: #` outside any section marks a chosen variant value, the chosen language, or the layout: a link reference definition, so it renders as nothing elsewhere.
+- A page with no selection of its own starts from the marks; `--layout` outranks the layout mark.
 - A second mark for one dim (or a second language or layout mark), a value with no scope for it, or a layout other than `dfs` and `bfs`, is an error.
 
 ## Saving
@@ -59,8 +59,8 @@ Ctrl+S and Export ▾ .html / .md write the md as it is, except:
 
 ## Layout
 Every response leads one rank or more down, except one in each loop, which points back up. The layout picks it:
-- `dfs` (the default): dagre's depth-first cycle breaking; a card ranks below the latest card leading to it.
-- `bfs`: cards are ordered as a call first reaches them, breadth-first from the root, then from each stray; a response into an earlier card points back, so a card ranks below the earliest card leading to it.
+- `bfs` (the default): cards are ordered as a call first reaches them, breadth-first from the root, then from each stray; a response into an earlier card points back, so a card ranks below the earliest card leading to it.
+- `dfs`: dagre's depth-first cycle breaking; a card ranks below the latest card leading to it.
 
 ## Editing
 - An edit whose result has errors is refused.

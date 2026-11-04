@@ -15,6 +15,18 @@ use tiny_http::{Header, Method, Response, Server};
 struct Cli {
 	#[command(subcommand)]
 	command: Command,
+	#[command(flatten)]
+	page: Page,
+}
+
+#[derive(Args)]
+struct Page {
+	/// which way conversation steps advance
+	#[arg(short, long, global = true, value_enum, default_value_t = Direction::Vertical)]
+	direction: Direction,
+	/// which response of each loop points back up: bfs ranks a card below its earliest caller, dfs below its latest. Outranks the md's `[layout="…"]: #`; bfs if neither is given
+	#[arg(short, long, global = true, value_enum)]
+	layout: Option<Layout>,
 }
 
 #[derive(Subcommand)]
@@ -40,12 +52,6 @@ enum Command {
 #[derive(Args)]
 struct Script {
 	md: PathBuf,
-	/// which way conversation steps advance
-	#[arg(short, long, value_enum, default_value_t = Direction::Vertical)]
-	direction: Direction,
-	/// rank each card below its earliest caller instead of its latest; outranks the md's `[layout="…"]: #`
-	#[arg(long)]
-	bfs: bool,
 }
 
 impl Script {
@@ -61,7 +67,8 @@ impl Script {
 
 fn main() -> Result<()> {
 	color_eyre::install()?;
-	match Cli::parse().command {
+	let Cli { command, page } = Cli::parse();
+	match command {
 		Command::Build { script, o, open } => {
 			let title = script.title()?;
 			let out = match o {
@@ -72,13 +79,13 @@ fn main() -> Result<()> {
 					dir.join(format!("{title}.html"))
 				}
 			};
-			std::fs::write(&out, bundle(&title, &script, &script.read()?, None)?).wrap_err_with(|| format!("writing {}", out.display()))?;
+			std::fs::write(&out, bundle(&title, &page, &script.read()?, None)?).wrap_err_with(|| format!("writing {}", out.display()))?;
 			if open {
 				xdg_open(out.as_os_str())?;
 			}
 			Ok(())
 		}
-		Command::Watch { script } => watch(&script),
+		Command::Watch { script } => watch(&script, &page),
 	}
 }
 
@@ -91,13 +98,13 @@ fn xdg_open(target: &OsStr) -> Result<()> {
 }
 
 /// The md is reread on every request, so the page's poll of `/version` is what notices a save.
-fn watch(script: &Script) -> Result<()> {
+fn watch(script: &Script, page: &Page) -> Result<()> {
 	let title = script.title()?;
 	let hasher = RandomState::new();
 	let version = |src: &str| format!("{:x}", hasher.hash_one(src));
 	let build = |src: &str| -> Result<(String, String)> {
 		let v = version(src);
-		let html = bundle(&title, script, src, Some(&v))?;
+		let html = bundle(&title, page, src, Some(&v))?;
 		Ok((v, html))
 	};
 	let mut served = build(&script.read()?)?;
@@ -201,15 +208,26 @@ enum Direction {
 	Vertical,
 }
 
+/// web/layout.js implements each
+#[derive(Clone, Copy, ValueEnum)]
+enum Layout {
+	Bfs,
+	Dfs,
+}
+
 /// `live`: the md version a `watch` page was built from
-fn bundle(title: &str, script: &Script, md: &str, live: Option<&str>) -> Result<String> {
+fn bundle(title: &str, page: &Page, md: &str, live: Option<&str>) -> Result<String> {
 	let lower = md.to_ascii_lowercase();
 	if lower.contains("<script") || lower.contains("</script") {
 		bail!("markdown contains a <script> tag; it would break out of the embedding <script> block");
 	}
 	let title = title.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
 	let live = live.map(|v| format!(" data-live=\"{v}\"")).unwrap_or_default();
-	let layout = if script.bfs { " data-layout=\"bfs\"" } else { "" };
+	let layout = match page.layout {
+		None => "",
+		Some(Layout::Bfs) => " data-layout=\"bfs\"",
+		Some(Layout::Dfs) => " data-layout=\"dfs\"",
+	};
 	let icon = include_str!("../web/icon.svg").replace('"', "'").replace('#', "%23"); // data: url, inside a "-quoted href
 	let parts = [
 		("@TITLE@", title.as_str()),
@@ -219,7 +237,7 @@ fn bundle(title: &str, script: &Script, md: &str, live: Option<&str>) -> Result<
 		("@LAYOUT@", layout),
 		(
 			"@RANKDIR@",
-			match script.direction {
+			match page.direction {
 				Direction::Horizontal => "LR",
 				Direction::Vertical => "TB",
 			},

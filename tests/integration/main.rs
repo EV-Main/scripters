@@ -208,7 +208,7 @@ fn md_save_ends_the_preamble_with_a_rule() {
 fn md_save_marks_the_selection() {
 	let md = "# A\n<div k=\"v\">\n</div>\n<div k=\"w\">\n</div>\n";
 	let choose = |v: &str| format!("const s = document.querySelector('#bar select'); s.value = '{v}'; s.dispatchEvent(new Event('change'));");
-	let layout = "[layout=\"dfs\"]: #\n";
+	let layout = "[layout=\"bfs\"]: #\n";
 	check_save(&[], md, "", &format!("{layout}\n---\n\n{md}"));
 	check_save(&[], md, &choose("w"), &format!("[k=w]: #\n{layout}\n---\n\n{md}"));
 	check_save(&[], &format!("[k=v]: #\n\n---\n\n{md}"), &choose("w"), &format!("[k=w]: #\n{layout}\n---\n\n{md}"));
@@ -225,16 +225,16 @@ fn md_save_marks_the_selection() {
 
 #[test]
 fn md_save_marks_the_layout_from_the_flag_or_the_bar() {
-	let bfs = "[layout=\"bfs\"]: #\n\n---\n\n# A\n";
-	check_save(&["--bfs"], "# A\n", "", bfs);
-	check_save(&["--bfs"], "[layout=\"dfs\"]: #\n\n---\n\n# A\n", "", bfs);
-	let pick = "const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'layout').querySelector('select'); s.value = 'bfs'; s.dispatchEvent(new Event('change'));";
-	check_save(&[], "# A\n", pick, bfs);
+	let dfs = "[layout=\"dfs\"]: #\n\n---\n\n# A\n";
+	check_save(&["-l", "dfs"], "# A\n", "", dfs);
+	check_save(&["--layout", "dfs"], "[layout=\"bfs\"]: #\n\n---\n\n# A\n", "", dfs);
+	let pick = "const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'layout').querySelector('select'); s.value = 'dfs'; s.dispatchEvent(new Event('change'));";
+	check_save(&[], "# A\n", pick, dfs);
 }
 
 #[test]
 fn following_a_variant_response_chooses_its_variant() {
 	let md = "# A\n<div k=\"v\">\n- [x](#b)\n</div>\n<div k=\"w\">\n- [y](#b)\n</div>\n# B\n";
 	let follow = "[...document.querySelectorAll('#canvas button.label')].find(b => b.textContent === 'k=wy').click();";
-	check_save(&[], md, follow, &format!("[k=w]: #\n[layout=\"dfs\"]: #\n\n---\n\n{md}"));
+	check_save(&[], md, follow, &format!("[k=w]: #\n[layout=\"bfs\"]: #\n\n---\n\n{md}"));
 }

@@ -3,7 +3,7 @@
 [loss]: <oklch(0.62 0.19 25)> "Objective not reached"
 [rework]: <oklch(0.86 0.09 85)> "Wording needs another pass"
 [lang="en"]: #
-[layout="dfs"]: #
+[layout="bfs"]: #
 
 ---
 
