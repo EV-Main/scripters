@@ -292,7 +292,7 @@ function renderBar() {
 	const menu = el('details', 'menu');
 	menu.append(control(el('summary', '', 'Export'), `download a copy; Ctrl+S ${live ? 'writes the md' : 'overwrites the opened file'}`, ['e']));
 	const items = el('div', 'items');
-	button('.html', 'this page, with the current script', [], () => download(`${document.title}.html`, html(stamped()), 'text/html'), items);
+	button('.csr.html', 'this page, with the current script', [], () => download(`${document.title}.csr.html`, html(stamped()), 'text/html'), items);
 	button('.md', 'the script alone', [], () => download(`${document.title}.scr.md`, stamped(), 'text/markdown'), items);
 	menu.append(items);
 	bar.append(menu);

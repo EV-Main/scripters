@@ -25,7 +25,7 @@ enum Command {
 	Build {
 		#[command(flatten)]
 		script: Script,
-		/// defaults to `<tmp>/scripters/<md stem>.html`
+		/// defaults to `<tmp>/scripters/<md stem>.csr.html`
 		#[arg(short)]
 		o: Option<PathBuf>,
 		/// open the result with `xdg-open`
@@ -76,7 +76,7 @@ fn main() -> Result<()> {
 				None => {
 					let dir = std::env::temp_dir().join("scripters");
 					std::fs::create_dir_all(&dir).wrap_err_with(|| format!("creating {}", dir.display()))?;
-					dir.join(format!("{title}.html"))
+					dir.join(format!("{title}.csr.html"))
 				}
 			};
 			std::fs::write(&out, bundle(&title, &page, &script.read()?, None)?).wrap_err_with(|| format!("writing {}", out.display()))?;

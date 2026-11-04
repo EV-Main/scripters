@@ -2,8 +2,8 @@
 A call script is a markdown file; the caller follows it as a clickable conversation graph in one offline html file, and edits it in place.
 
 ```
-script.scr.md ──bundle──► script.html (md embedded verbatim + inlined web/ assets)
-                             └─ runtime: md ─parse─► graph ─filter(selection)─► layout ─► cards + edges
+script.scr.md ──bundle──► script.csr.html (md embedded verbatim + inlined web/ assets)
+                               └─ runtime: md ─parse─► graph ─filter(selection)─► layout ─► cards + edges
 any edit ─► splice into md ─► reparse ─► rerender
 save     ─► same html with the embedded md replaced
 
