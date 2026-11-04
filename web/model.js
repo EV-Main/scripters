@@ -70,13 +70,15 @@ function parse(md) {
 				if (block && node) node.end = line.start;
 				if (block) node = null;
 				if (scopes.some(s => s.key === key)) errors.push({ line: lineNo, msg: `\`<div ${key}>\` inside another` });
-				scopes.push({ key, value, line: lineNo, block });
+				scopes.push({ key, value, line: lineNo, start: line.start, block });
 				const values = key === 'lang' ? langs : (dims[key] ??= []);
 				if (!values.includes(value)) values.push(value);
 				return;
 			}
 			if (scopes.length && /^ {0,3}<\/div>[ \t]*$/.test(line.text)) {
-				if (scopes.pop().block && node) {
+				const s = scopes.pop();
+				if (s.key === 'lang') node.langs.push({ lang: s.value, scope: scope(false), start: s.start, end: line.end }); // for web/translate.js
+				if (s.block && node) {
 					node.end = line.start;
 					node = null;
 				}
@@ -164,7 +166,7 @@ function heading(raw, at, start, line, errors) {
 	if (title === '') errors.push({ line, msg: 'empty heading' });
 	// github's anchor slug, so slot links also resolve when the md is viewed there
 	const id = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
-	return { id, title, titles: {}, labels, attrs, line, start, end: null, body: [], responses: [], stray: false };
+	return { id, title, titles: {}, langs: [], labels, attrs, line, start, end: null, body: [], responses: [], stray: false };
 }
 
 function visible(graph, selection) {

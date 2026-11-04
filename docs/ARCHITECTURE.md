@@ -11,12 +11,13 @@ watch: script.scr.md ─bundle per request─► http://127.0.0.1 page ─poll /
        page Ctrl+S ─PUT md─► script.scr.md   (refused if it changed since the page last merged it)
 ```
 
-- `src/`: the bundler, and the `watch` server. It never parses the format.
+- `src/`: the bundler, the `watch` server, and `translate`'s LLM calls and review. It never parses the format: `translate` runs web/translate.js in an embedded JS engine.
 - `web/model.js`: the format's only parser, and its visibility rules; DOM-free.
 - `web/layout.js`: dagre's layout of the visible graph, one strategy per layout for which edges point back.
 - `web/merge.js`: line-level three-way merge of the page's unsaved edits with the md changed on disk; DOM-free.
 - `web/place.js`: cross-axis placement of dagre's layout (Graphviz dot's network-simplex pass); DOM-free.
 - `web/view.js`: everything the page does.
+- `web/translate.js`: what `translate` asks the LLM, and where the answers go; not part of the page.
 
 ## Invariants
 <!-- embed spec/page.md {{{always-->
@@ -79,6 +80,14 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 - Scopes of different keys nest either way; one inside another of the same key, or one never closed, is an error.
 - Languages are the union of the language codes, in order of first appearance; dimensions and their values are the union of the variant scopes. Nothing is declared.
 - A heading inside language scopes alone is the card's title in that language. It starts no node: slot and labels come from the main heading alone. A second title for one language in a section, a `{…}` block on it, or a heading inside a variant scope is an error.
+
+### Translating
+`scripters translate <md> --from <code> --to <code>` fills one language from another. Only prose reaches the LLM, one bit per call, each distinct text once: a title, a line, or a response's label; indent, quote and list markers, `<div>` lines, slots and fenced code are copied around it.
+- A section with no language scope is wrapped whole in `<div lang="from">`.
+- Each `from` block gets a `to` sibling right after it: the same lines translated, a line wrapped onto the next joined into one, and, for the section's first block outside any variant that holds no heading, the main title one level down as its title.
+- `from` and `to` blocks pair up in order within the same enclosing variants. A section with languages but no `from` block in some variants, or a count of `to` blocks other than none or as many, is an error.
+- Lines outside every language scope of a section that has some stay as they are.
+- An existing `to` block the translation would change is shown by `cargo insta review`: accepted ones are overwritten, the rest stay. The md is written once, at the end, and only if every call answered and the result parses.
 
 ### Marks
 - A line `[dim=value]: #`, `[lang="code"]: #` or `[layout="bfs"]: #` outside any section marks a chosen variant value, the chosen language, or the layout: a link reference definition, so it renders as nothing elsewhere.

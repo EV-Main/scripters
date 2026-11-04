@@ -7,6 +7,8 @@ use std::{
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
+use futures::StreamExt as _;
+use rquickjs::CatchResultExt as _;
 use tiny_http::{Header, Method, Response, Server};
 
 /// Bundle a markdown call script into one self-contained html file
@@ -36,6 +38,18 @@ enum Command {
 	Watch {
 		#[command(flatten)]
 		script: Script,
+	},
+	/// fill the `--to` language from the `--from` one, one bit of prose per LLM call, in place; changes to existing `--to` blocks go through `cargo insta review`
+	Translate {
+		#[command(flatten)]
+		script: Script,
+		#[arg(long)]
+		from: String,
+		#[arg(long)]
+		to: String,
+		/// ask_llm's model tier
+		#[arg(long, default_value = "translate")]
+		quality: ask_llm::Model,
 	},
 }
 
@@ -86,6 +100,115 @@ fn main() -> Result<()> {
 			Ok(())
 		}
 		Command::Watch { script } => watch(&script, &page),
+		Command::Translate { script, from, to, quality } => translate(&script, &from, &to, quality),
+	}
+}
+
+fn translate(script: &Script, from: &str, to: &str, quality: ask_llm::Model) -> Result<()> {
+	let md = script.read()?;
+	let format = Format::new()?;
+	let texts: Vec<String> = serde_json::from_value(format.call("bits", serde_json::json!([md, from, to]))?)?;
+	eprintln!("translating {} texts from `{from}` to `{to}`", texts.len());
+	let client = ask_llm::Client::new(ask_llm::config::AppConfig::default()).model(quality);
+	let ask = async |text: String| {
+		let prompt = format!(
+			"Translate this line of a sales call script from the language `{from}` into the language `{to}`. Keep its inline markdown (**bold**, *italics*, `code`, [links](url)) as it is. Answer with the translation alone, on one line.\n\n{text}"
+		);
+		let answer = match client.ask(prompt).await {
+			Ok(r) => match r.text.trim() {
+				"" => Err(eyre!("empty answer")),
+				t if t.contains('\n') => Err(eyre!("answer spans lines:\n{t}")),
+				t => Ok(t.to_owned()),
+			},
+			Err(e) => Err(eyre!(e)),
+		};
+		(text, answer)
+	};
+	let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().wrap_err("starting the async runtime")?;
+	let answers: Vec<_> = runtime.block_on(futures::stream::iter(texts).map(ask).buffer_unordered(8).collect());
+	let mut map = serde_json::Map::new();
+	let mut failed = Vec::new();
+	for (text, answer) in answers {
+		match answer {
+			Ok(t) => {
+				map.insert(text, t.into());
+			}
+			Err(e) => failed.push(format!("{text:?}: {e:?}")),
+		}
+	}
+	if !failed.is_empty() {
+		bail!("{} of {} translations failed; nothing written:\n{}", failed.len(), failed.len() + map.len(), failed.join("\n"));
+	}
+	let map = serde_json::Value::Object(map);
+	let applied = format.call("apply", serde_json::json!([md, from, to, map, []]))?;
+	let conflicts = applied["conflicts"].as_array().expect("apply returns {md, conflicts: []}");
+	let out = if conflicts.is_empty() {
+		applied
+	} else {
+		let accepted = review(script, to, conflicts)?;
+		format.call("apply", serde_json::json!([md, from, to, map, accepted]))?
+	};
+	let out = out["md"].as_str().expect("apply returns {md, conflicts: []}");
+	std::fs::write(&script.md, out).wrap_err_with(|| format!("writing {}", script.md.display()))
+}
+
+/// Each conflict becomes a pending snapshot of a throwaway crate, so `cargo insta review` shows the old block against the new one; the accepted ones are returned.
+fn review(script: &Script, to: &str, conflicts: &[serde_json::Value]) -> Result<Vec<String>> {
+	let dir = tempfile::tempdir().wrap_err("creating a dir for the review")?;
+	let root = dir.path();
+	let write = |path: PathBuf, content: &str| std::fs::write(&path, content).wrap_err_with(|| format!("writing {}", path.display()));
+	write(root.join("Cargo.toml"), "[package]\nname = \"review\"\nversion = \"0.0.0\"\nedition = \"2024\"\n")?; // cargo-insta runs `cargo metadata` on it
+	std::fs::create_dir(root.join("src")).wrap_err("creating the review crate")?;
+	write(root.join("src/lib.rs"), "")?;
+	let field = |c: &serde_json::Value, k: &str| c[k].as_str().expect("conflicts are {key, title, old, new} strings").to_owned();
+	for c in conflicts {
+		let (key, title) = (field(c, "key"), field(c, "title"));
+		let header = format!("---\nsource: {}\nexpression: {}\n---\n", script.md.display(), serde_json::json!(format!("{title} [{to}]")));
+		write(root.join(format!("{key}.snap")), &(header.clone() + &field(c, "old")))?;
+		write(root.join(format!("{key}.snap.new")), &(header + &field(c, "new")))?;
+	}
+	eprintln!("{} existing `{to}` blocks would change; accept the ones to overwrite", conflicts.len());
+	let status = std::process::Command::new("cargo")
+		.args(["insta", "review", "--workspace-root"])
+		.arg(root)
+		.status()
+		.wrap_err("running `cargo insta review`")?;
+	if !status.success() {
+		bail!("`cargo insta review` exited with {status}; nothing written. It reviews overwrites of existing blocks: `cargo install cargo-insta` if it is missing");
+	}
+	let mut accepted = Vec::new();
+	for c in conflicts {
+		let path = root.join(format!("{}.snap", field(c, "key")));
+		let snap = std::fs::read_to_string(&path).wrap_err_with(|| format!("reading {}", path.display()))?;
+		let body = snap.splitn(3, "---\n").nth(2).ok_or_else(|| eyre!("{} lost its header", path.display()))?;
+		if body.trim_end() == field(c, "new").trim_end() {
+			accepted.push(field(c, "key"));
+		}
+	}
+	Ok(accepted)
+}
+
+/// web/translate.js on web/model.js, as the format is parsed nowhere else
+struct Format(rquickjs::Context);
+
+impl Format {
+	fn new() -> Result<Self> {
+		let context = rquickjs::Context::full(&rquickjs::Runtime::new()?)?;
+		context.with(|ctx| -> Result<()> {
+			for src in [include_str!("../web/model.js"), include_str!("../web/translate.js")] {
+				ctx.eval::<(), _>(src).catch(&ctx).map_err(|e| eyre!("{e}"))?;
+			}
+			Ok(())
+		})?;
+		Ok(Self(context))
+	}
+
+	/// `args`: a json array
+	fn call(&self, f: &str, args: serde_json::Value) -> Result<serde_json::Value> {
+		self.0.with(|ctx| {
+			let json: String = ctx.eval(format!("JSON.stringify({f}(...{args}))")).catch(&ctx).map_err(|e| eyre!("{e}"))?;
+			Ok(serde_json::from_str(&json)?)
+		})
 	}
 }
 
