@@ -1,5 +1,6 @@
-[objection]: <oklch(0.62 0.19 25)> "They push back"
+[objection]: <oklch(0.6 0.15 300)> "They push back"
 [win]: <oklch(0.62 0.17 150)> "The call ends well"
+[loss]: <oklch(0.62 0.19 25)> "The call ends badly"
 [rework]: <oklch(0.86 0.09 85)> "Wording needs another pass"
 [lang="en"]: #
 
@@ -170,5 +171,5 @@ Perfect, you'll get an email with the details in a minute. Thanks for your time!
 # Schedule callback
 No problem at all. When's a better time to reach you, later today or tomorrow morning?
 
-# Not interested
+# Not interested {.loss}
 Understood, I appreciate you being upfront. Mind if I send a short email in case things change?
