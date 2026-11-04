@@ -19,16 +19,6 @@ struct Cli {
 	page: Page,
 }
 
-#[derive(Args)]
-struct Page {
-	/// which way conversation steps advance
-	#[arg(short, long, global = true, value_enum, default_value_t = Direction::Vertical)]
-	direction: Direction,
-	/// which response of each loop points back up: bfs ranks a card below its earliest caller, dfs below its latest. Outranks the md's `[layout="…"]: #`; bfs if neither is given
-	#[arg(short, long, global = true, value_enum)]
-	layout: Option<Layout>,
-}
-
 #[derive(Subcommand)]
 enum Command {
 	/// write the html file
@@ -47,6 +37,16 @@ enum Command {
 		#[command(flatten)]
 		script: Script,
 	},
+}
+
+#[derive(Args)]
+struct Page {
+	/// which way conversation steps advance
+	#[arg(short, long, global = true, value_enum, default_value_t = Direction::Vertical)]
+	direction: Direction,
+	/// which response of each loop points back up: bfs ranks a card below its earliest caller, dfs below its latest. Outranks the md's `[layout="…"]: #`; bfs if neither is given
+	#[arg(short, long, global = true, value_enum)]
+	layout: Option<Layout>,
 }
 
 #[derive(Args)]
@@ -216,6 +216,7 @@ enum Layout {
 }
 
 /// `live`: the md version a `watch` page was built from
+// r[impl page.standalone]
 fn bundle(title: &str, page: &Page, md: &str, live: Option<&str>) -> Result<String> {
 	let lower = md.to_ascii_lowercase();
 	if lower.contains("<script") || lower.contains("</script") {

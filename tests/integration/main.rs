@@ -27,6 +27,7 @@ fn build(test: &str, flags: &[&str], md: &str) -> Result<String, String> {
 	result
 }
 
+// r[verify page.standalone]
 #[test]
 fn demo_is_self_contained() {
 	let md = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.scr.md")).unwrap();
@@ -162,6 +163,7 @@ button('.md').click();
 	assert_eq!(rest.split_once("</script>").unwrap().0, expected);
 }
 
+// r[verify page.md-truth]
 #[test]
 fn md_save_round_trips() {
 	let demo = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.scr.md")).unwrap();

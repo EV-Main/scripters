@@ -1,0 +1,15 @@
+@schema {id crate:tracey-config@1, cli tracey}
+
+specs (
+  {
+    name scripters
+    include (docs/spec/**/*.md)
+    impls (
+      {
+        name code
+        include (src/**/*.rs tests/**/*.rs web/**/*.js)
+        exclude (web/vendor/**)
+      }
+    )
+  }
+)

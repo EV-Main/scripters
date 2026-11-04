@@ -523,6 +523,7 @@ function reveal(id) {
 }
 
 // edits: [{start, end, text}] against the current md
+// r[impl page.md-truth]
 function splice(edits) {
 	edits.sort((a, b) => b.start - a.start);
 	edits.forEach((e, i) => i && assert(e.end <= edits[i - 1].start, 'splice edits overlap'));

@@ -1,4 +1,4 @@
-// Sole parser of the script format: docs/spec/script_format.md
+// Sole parser of the script format: docs/ARCHITECTURE.md#format
 
 const LAYOUTS = ['dfs', 'bfs']; // implemented in web/layout.js
 
