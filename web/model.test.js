@@ -1,15 +1,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parse, visible, inLang } = require('./model.js');
+const { parse, visible, inScope } = require('./model.js');
 
 const dedent = s => s.replace(/^\n/, '').replace(/^\t+/gm, '');
+
+const scoped = (scope, text) => (Object.keys(scope).length ? `{${Object.entries(scope).map(([k, v]) => `${k}=${v}`).join(' ')}}${text}` : text);
 
 function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
 		...graph.marks.map(m => `mark ${m.dim ?? 'language'}=${m.value}`),
-		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => (l.lang ? `{${l.lang}}${l.text}` : l.text)).join('\n').trim())}`),
-		...graph.edges.map(e => `edge ${e.from} -[${e.label}]-> ${e.to}${e.lang ? ` lang=${e.lang}` : ''}`),
+		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`),
+		...graph.edges.map(e => scoped(e.scope, `edge ${e.from} -[${e.label}]-> ${e.to}`)),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
 		...graph.errors.map(e => `error L${e.line}: ${e.msg}`),
@@ -26,7 +28,7 @@ function checkVisible(md, selection, expected) {
 	assert.deepEqual([...visible(graph, selection)].sort(), expected.sort());
 }
 
-test('slots, tags and response edges', () => {
+test('slots and response edges', () => {
 	checkParse(
 		`
 		# Hello, World!
@@ -35,18 +37,12 @@ test('slots, tags and response edges', () => {
 		- [Has time](#opening)
 		- not a [response](#opening) item
 
-		# Opening {opener=warm}
-		warm
-		# Opening {opener=cold}
-		cold
+		# Opening
 		`,
 		`
 		node hello-world "Hello, World!" root body="Say [hi](#opening) warmly.\\n\\n- not a [response](#opening) item"
-		node opening{opener=warm} "Opening" body="warm"
-		node opening{opener=cold} "Opening" body="cold"
-		edge hello-world -[Has time]-> opening{opener=warm}
-		edge hello-world -[Has time]-> opening{opener=cold}
-		dim opener: cold warm
+		node opening "Opening" body=""
+		edge hello-world -[Has time]-> opening
 		`,
 	);
 });
@@ -117,19 +113,29 @@ test('an unlabeled response must be its card\'s only one', () => {
 		error L5: an unlabeled response must be its card's only one
 		`,
 	);
-});
-
-test('canonical id sorts tag keys', () => {
 	checkParse(
 		`
-		# A {z=1 a=2}
+		# A
+		<div k="v">
+		- [](#b)
+		</div>
+		<div k="w">
+		- [x](#b)
+		</div>
+		# B
 		`,
 		`
-		node a{a=2 z=1} "A" root body=""
-		dim z: 1
-		dim a: 2
+		node a "A" root body=""
+		node b "B" body=""
+		{k=v}edge a -[]-> b
+		{k=w}edge a -[x]-> b
+		dim k: v w
 		`,
 	);
+});
+
+test('a heading takes no variant tags', () => {
+	checkParse('# A {k=v}\n', 'node a "A" root body=""\nerror L1: `k=v` on a heading: variants are `<div k="v">` scopes');
 });
 
 test('headings and responses inside code fences are body', () => {
@@ -163,14 +169,13 @@ test('parse errors', () => {
 	);
 	checkParse(
 		`
-		# A {k=v}
-		# A {k=v}
+		# A
+		## A
 		`,
 		`
-		node a{k=v} "A" root body=""
-		node a{k=v} "A" root body=""
-		dim k: v
-		error L2: duplicate of line 1: same heading and tags
+		node a "A" root body=""
+		node a "A" root body=""
+		error L2: duplicate of line 1: same slot
 		`,
 	);
 	checkParse(
@@ -192,7 +197,6 @@ test('parse errors', () => {
 		`,
 	);
 	checkParse('', 'error L1: no headings');
-	checkParse('# A {k=1 k=2}\n', 'node a{k=2} "A" root body=""\ndim k: 2\nerror L1: tag key `k` given twice');
 });
 
 test('labels are defined before the first heading and attached with `.name`', () => {
@@ -201,17 +205,16 @@ test('labels are defined before the first heading and attached with `.name`', ()
 		[hot]: <oklch(0.6 0.2 25)> "Wants it \\"now\\""
 		[later]: <oklch(0.55 0.15 145)>
 
-		# A {.hot k=v .later}
+		# A {.hot .later}
 		- [x](#b)
 		# B {.later}
 		`,
 		`
 		label hot oklch(0.6 0.2 25) "Wants it \\"now\\""
 		label later oklch(0.55 0.15 145) ""
-		node a{k=v} "A" root .hot .later body=""
+		node a "A" root .hot .later body=""
 		node b "B" .later body=""
-		edge a{k=v} -[x]-> b
-		dim k: v
+		edge a -[x]-> b
 		`,
 	);
 	checkParse(
@@ -241,22 +244,26 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 
 		---
 
-		# A {k=v}
+		# A
 		<div lang="ru">
 		a
 		</div>
 		- [x](#b)
 		# - Group
 		---
-		# B {k=w}
+		# B
+		<div k="w">
+		</div>
+		<div k="v">
+		</div>
 		`,
 		`
 		label l oklch(0 0 0) ""
 		mark k=v
 		mark language=ru
-		node a{k=v} "A" root body="{ru}a"
-		node b{k=w} "B" body=""
-		edge a{k=v} -[x]-> b{k=w}
+		node a "A" root body="{lang=ru}a"
+		node b "B" body=""
+		edge a -[x]-> b
 		langs: ru
 		dim k: v w
 		`,
@@ -267,39 +274,41 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 		[k=v]: #
 		[j=v]: #
 		[lang="en"]: #
-		# A {k=v}
+		# A
+		<div k="v">
+		</div>
 		`,
 		`
 		mark k=x
 		mark j=v
 		mark language=en
-		node a{k=v} "A" root body=""
+		node a "A" root body=""
 		dim k: v
 		error L2: a second mark for \`k\`
-		error L1: \`k\` has no variant \`x\`
-		error L3: no variant is tagged \`j\`
+		error L1: no \`<div k="x">\`
+		error L3: no \`<div j="v">\`
 		error L4: no \`<div lang="en">\`
 		`,
 	);
 });
 
 test('spans locate the text an edit replaces', () => {
-	const md = '[l]: <oklch(0 0 0)>\n\n# A {k=v .l} ##\nbody\n- [x](#b)\n# B\n';
+	const md = '[l]: <oklch(0 0 0)>\n\n# A {.l} ##\nbody\n- [x](#b)\n# B\n';
 	const g = parse(md);
 	assert.deepEqual(g.errors, []);
 	const [a, b] = g.nodes;
-	assert.equal(md.slice(a.attrs.start, a.attrs.end), ' {k=v .l}');
+	assert.equal(md.slice(a.attrs.start, a.attrs.end), ' {.l}');
 	assert.equal(b.attrs.start, b.attrs.end);
-	assert.equal(md.slice(0, b.attrs.start), '[l]: <oklch(0 0 0)>\n\n# A {k=v .l} ##\nbody\n- [x](#b)\n# B');
+	assert.equal(md.slice(0, b.attrs.start), '[l]: <oklch(0 0 0)>\n\n# A {.l} ##\nbody\n- [x](#b)\n# B');
 	assert.equal(md.slice(g.edges[0].start, g.edges[0].end), '- [x](#b)\n');
 	assert.equal(md.slice(g.labels[0].start, g.labels[0].end), '[l]: <oklch(0 0 0)>\n');
 	assert.deepEqual(g.preamble, { end: md.indexOf('# A'), ruled: false });
 
-	const marked = '[k=v]: #\n\n---\n\n# - G\n# A {k=v}\n';
+	const marked = '[k=v]: #\n\n---\n\n# - G\n# A\n<div k="v">\n</div>\n';
 	const m = parse(marked);
 	assert.equal(marked.slice(m.marks[0].start, m.marks[0].end), '[k=v]: #\n');
 	assert.deepEqual(m.preamble, { end: marked.indexOf('# - G'), ruled: true });
-	assert.equal(parse('---\n[k=v]: #\n# A {k=v}\n').preamble.ruled, false);
+	assert.equal(parse('---\n[l]: <oklch(0 0 0)>\n# A\n').preamble.ruled, false);
 });
 
 test('`<div lang>` scopes body lines and responses to a language', () => {
@@ -322,10 +331,10 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		# B
 		`,
 		`
-		node a "A" root ru="А" body="{ru}\\n{ru}Привет\\n{en}Hi\\n\\n> both"
+		node a "A" root ru="А" body="{lang=ru}\\n{lang=ru}Привет\\n{lang=en}Hi\\n\\n> both"
 		node b "B" body=""
-		edge a -[Да]-> b lang=ru
-		edge a -[Yes]-> b lang=en
+		{lang=ru}edge a -[Да]-> b
+		{lang=en}edge a -[Yes]-> b
 		edge a -[Skip]-> b
 		langs: ru en
 		`,
@@ -336,9 +345,10 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		<div lang="ru">
 		<div lang="en">
 		</div>
+		</div>
 		<div lang="de">
 		# A1
-		# A2 {k=v .l}
+		# A2 {.l}
 		</div>
 		<div lang="de">
 		# A3
@@ -350,10 +360,10 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		node a "A" root de="A1" fr="B" body=""
 		langs: ru en de fr
 		error L3: \`<div lang>\` inside another
-		error L7: tags and labels go on the main heading
-		error L7: a second \`de\` title
-		error L10: a second \`de\` title
-		error L12: \`<div lang="fr">\` not closed
+		error L8: labels go on the main heading
+		error L8: a second \`de\` title
+		error L11: a second \`de\` title
+		error L13: \`<div lang="fr">\` not closed
 		`,
 	);
 });
@@ -371,16 +381,79 @@ test('a language hides the other languages\' responses and what only they reach'
 	checkVisible(md, {}, ['a', 'b', 'c']);
 	checkVisible(md, { lang: 'en' }, ['a', 'c']);
 	checkVisible(md, { lang: 'ru' }, ['a', 'b', 'c']);
-	assert.equal(inLang({ lang: 'ru' }, { lang: 'en' }), false);
+	assert.equal(inScope({ scope: { lang: 'ru' } }, { lang: 'en' }), false);
+});
+
+test('variant scopes split one card and nest with language scopes either way', () => {
+	checkParse(
+		`
+		# Opening
+		Hi.
+		<div opener="warm">
+		Congrats on the new office.
+		<div lang="ru">
+		Поздравляю.
+		- [Да](#pitch)
+		</div>
+		</div>
+		<div lang="ru">
+
+		## Начало
+		<div opener="cold">
+		Сколько звонков?
+		</div>
+		</div>
+		<div opener="cold">
+		How many calls?
+		- [Gives a number](#pitch)
+		</div>
+		# Pitch
+		`,
+		`
+		node opening "Opening" root ru="Начало" body="Hi.\\n{opener=warm}Congrats on the new office.\\n{opener=warm lang=ru}Поздравляю.\\n{lang=ru}\\n{lang=ru opener=cold}Сколько звонков?\\n{opener=cold}How many calls?"
+		node pitch "Pitch" body=""
+		{opener=warm lang=ru}edge opening -[Да]-> pitch
+		{opener=cold}edge opening -[Gives a number]-> pitch
+		langs: ru
+		dim opener: cold warm
+		`,
+	);
+	checkParse(
+		`
+		# A
+		<div k="v">
+		<div k="w">
+		</div>
+		# A1
+		<div lang="ru">
+		# A2
+		</div>
+		</div>
+		<div j="v">
+		`,
+		`
+		node a "A" root body=""
+		langs: ru
+		dim k: v w
+		dim j: v
+		error L3: \`<div k>\` inside another
+		error L5: a heading inside a variant scope
+		error L7: a heading inside a variant scope
+		error L10: \`<div j="v">\` not closed
+		`,
+	);
 });
 
 const VARIANTS = `
 	# Intro
 	- [go](#opening)
-	# Opening {opener=warm}
+	# Opening
+	<div opener="warm">
 	- [next](#warm-pitch)
-	# Opening {opener=cold}
+	</div>
+	<div opener="cold">
 	- [next](#cold-pitch)
+	</div>
 	# Warm pitch
 	- [ok](#close)
 	# Cold pitch
@@ -395,33 +468,29 @@ const VARIANTS = `
 `;
 
 test('unselected dims admit every variant; cycles and multiple roots', () => {
-	checkVisible(VARIANTS, {}, [
-		'intro',
-		'opening{opener=warm}',
-		'opening{opener=cold}',
-		'warm-pitch',
-		'cold-pitch',
-		'objection',
-		'close',
-		'price-objection',
-	]);
+	checkVisible(VARIANTS, {}, ['intro', 'opening', 'warm-pitch', 'cold-pitch', 'objection', 'close', 'price-objection']);
 });
 
-test('excluded variant hides its subtree; slot link resolves to the selected variant', () => {
-	checkVisible(VARIANTS, { variants: { opener: 'warm' } }, ['intro', 'opening{opener=warm}', 'warm-pitch', 'close', 'price-objection']);
+test('a chosen variant hides what only the other variants reach', () => {
+	checkVisible(VARIANTS, { variants: { opener: 'warm' } }, ['intro', 'opening', 'warm-pitch', 'close', 'price-objection']);
 });
 
 test('rejoin stays visible through any visible parent', () => {
-	checkVisible(VARIANTS, { variants: { opener: 'cold' } }, ['intro', 'opening{opener=cold}', 'cold-pitch', 'objection', 'close', 'price-objection']);
+	checkVisible(VARIANTS, { variants: { opener: 'cold' } }, ['intro', 'opening', 'cold-pitch', 'objection', 'close', 'price-objection']);
 });
 
-test('variant root is filtered like any other node', () => {
+test('a response scoped to a variant and a language needs both chosen to agree', () => {
 	const md = `
-		# Intro {opener=a}
-		- [x](#end)
-		# Intro {opener=b}
-		- [y](#end)
-		# End
+		# A
+		<div lang="ru">
+		<div k="v">
+		- [x](#b)
+		</div>
+		</div>
+		# B
 	`;
-	checkVisible(md, { variants: { opener: 'b' } }, ['intro{opener=b}', 'end']);
+	checkVisible(md, { lang: 'ru', variants: { k: 'v' } }, ['a', 'b']);
+	checkVisible(md, { lang: 'ru' }, ['a', 'b']);
+	checkVisible(md, { lang: 'en', variants: { k: 'v' } }, ['a']);
+	checkVisible(md, { lang: 'ru', variants: { k: 'w' } }, ['a']);
 });

@@ -171,17 +171,19 @@ fn md_save_round_trips() {
 
 ---
 
-# Start {.hot k=v} <!-- the opener -->
+# Start {.hot} <!-- the opener -->
 Hi <!-- inline comment --> there.
 <div lang="ru">
 Привет
 </div>
+<div k="v">
 
 - [Go](#next) <!-- not a response: the comment is part of the item -->
 - [Go](#next)
-
-# Start {k=w}
+</div>
+<div k="w">
 - [Go](#next)
+</div>
 
 ## - Group <!-- noop -->
 ### Next ###
@@ -203,13 +205,20 @@ fn md_save_ends_the_preamble_with_a_rule() {
 
 #[test]
 fn md_save_marks_the_selection() {
-	let md = "# A {k=v}\n# A {k=w}\n";
+	let md = "# A\n<div k=\"v\">\n</div>\n<div k=\"w\">\n</div>\n";
 	let choose = |v: &str| format!("const s = document.querySelector('#bar select'); s.value = '{v}'; s.dispatchEvent(new Event('change'));");
 	check_save(md, "", md);
-	check_save(md, &choose("w"), "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
-	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", &choose("w"), "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
-	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", &choose("all"), "\n---\n\n# A {k=v}\n# A {k=w}\n");
+	check_save(md, &choose("w"), &format!("[k=w]: #\n\n---\n\n{md}"));
+	check_save(&format!("[k=v]: #\n\n---\n\n{md}"), &choose("w"), &format!("[k=w]: #\n\n---\n\n{md}"));
+	check_save(&format!("[k=v]: #\n\n---\n\n{md}"), &choose("all"), &format!("\n---\n\n{md}"));
 	let langs = "# A\n<div lang=\"en\">\nhi\n</div>\n<div lang=\"ru\">\nпривет\n</div>\n";
 	check_save(langs, "", &format!("[lang=\"en\"]: #\n\n---\n\n{langs}"));
 	check_save(&format!("[l]: <oklch(0 0 0)>\n{md}"), &choose("v"), &format!("[l]: <oklch(0 0 0)>\n[k=v]: #\n\n---\n\n{md}"));
+}
+
+#[test]
+fn following_a_variant_response_chooses_its_variant() {
+	let md = "# A\n<div k=\"v\">\n- [x](#b)\n</div>\n<div k=\"w\">\n- [y](#b)\n</div>\n# B\n";
+	let follow = "[...document.querySelectorAll('#canvas button.label')].find(b => b.textContent === 'k=wy').click();";
+	check_save(md, follow, &format!("[k=w]: #\n\n---\n\n{md}"));
 }

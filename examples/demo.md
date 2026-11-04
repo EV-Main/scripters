@@ -54,18 +54,24 @@ Fair question. I'm Sam with **Brightline**: we help service teams cut missed cal
 - [Okay, go on](#opening)
 - [Not interested](#not-interested)
 
-# Opening {opener=warm}
+# Opening
+<div opener="warm">
+
 Great. I saw you recently expanded to a second location, congrats! Teams growing that fast often tell us
 calls start slipping through the cracks. Is that something you've noticed?
 
 - [Yes, it happens](#discovery)
 - [Not really](#not-interested)
 
-# Opening {opener=cold}
+</div>
+<div opener="cold">
+
 Thanks. Quick question: roughly how many inbound calls does your front desk handle on a busy day?
 
 - [Gives a number](#discovery)
 - [Why do you ask?](#why-do-you-ask)
+
+</div>
 
 # Why do you ask?
 We've found that past about **40 calls a day**, most teams miss 1 in 5 without realizing it.
@@ -150,19 +156,25 @@ service reading a script. We book straight into your calendar, and you hear ever
 - [That's different](#anything-else)
 - [Still skeptical](#not-interested)
 
-# Close {offer=demo}
+# Close
+<div offer="demo">
+
 Let's do this: I'll set up a 15-minute walkthrough with your numbers. Does **Thursday at 10** or
 **Friday at 2** work better?
 
 - [Books a slot](#booked)
-- [Hesitates](#anything-else)
 - [Busy right now](#schedule-callback)
 
-# Close {offer=trial}
+</div>
+<div offer="trial">
+
 Let's make it easy: we run Brightline on your overflow line **free for two weeks**. If it hasn't booked you a
 job by then, you switch it off. Want me to set that up today?
 
 - [Starts the trial](#booked)
+
+</div>
+
 - [Hesitates](#anything-else)
 
 # Booked {.win}

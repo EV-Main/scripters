@@ -354,6 +354,24 @@ input {
 	border-left: 3px solid var(--line);
 	color: var(--muted);
 }
+.body .variant {
+	margin: 0.5rem 0;
+	padding: 0.4rem 0.6rem;
+	border: 1px dashed var(--chip-line);
+	border-radius: 6px;
+}
+.body .variant:hover {
+	border-color: var(--chip-ink);
+}
+.variant > :nth-child(2) {
+	margin-top: 0.3rem;
+}
+.variant > :last-child {
+	margin-bottom: 0;
+}
+.label .chip {
+	margin-right: 0.3rem;
+}
 .body code {
 	font-size: 0.88em;
 	background: var(--code);

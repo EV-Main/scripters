@@ -5,6 +5,7 @@ function parse(md) {
 	const labels = [];
 	const errors = [];
 	const langs = [];
+	const dims = {};
 	const marks = [];
 	const preamble = { end: md.length, ruled: false }; // the lines before the first heading
 	const lines = [];
@@ -17,7 +18,8 @@ function parse(md) {
 
 	let fence = null;
 	let node = null;
-	let lang = null; // the open `<div lang>`: {code, line}
+	const scopes = []; // the open `<div k="v">`s, outermost first: {key, value, line}
+	const scope = () => Object.fromEntries(scopes.map(s => [s.key, s.value]));
 	lines.forEach((line, i) => {
 		const lineNo = i + 1;
 		const f = /^ {0,3}(`{3,}|~{3,})/.exec(line.text);
@@ -31,17 +33,19 @@ function parse(md) {
 			if (preamble.end === md.length && h) preamble.end = line.start;
 			else if (preamble.end === md.length && line.text.trim() !== '') preamble.ruled = rule;
 			const noop = h?.[1]?.startsWith('-'); // groups sections when the md is read elsewhere
-			if (noop && lang) return;
+			if (noop && scopes.length) return;
 			if (noop) {
 				if (node) node.end = line.start;
 				node = null;
 				return;
 			}
-			if (h && lang) {
+			if (h && scopes.length) {
 				const t = heading(h[1] ?? '', 0, line.start, lineNo, errors);
-				if (Object.keys(t.tags).length || t.labels.length) errors.push({ line: lineNo, msg: 'tags and labels go on the main heading' });
-				if (lang.code in node.titles) errors.push({ line: lineNo, msg: `a second \`${lang.code}\` title` });
-				else node.titles[lang.code] = t.title;
+				const lang = scope().lang;
+				if (scopes.some(s => s.key !== 'lang')) return errors.push({ line: lineNo, msg: 'a heading inside a variant scope' });
+				if (t.labels.length) errors.push({ line: lineNo, msg: 'labels go on the main heading' });
+				if (lang in node.titles) errors.push({ line: lineNo, msg: `a second \`${lang}\` title` });
+				else node.titles[lang] = t.title;
 				return;
 			}
 			if (h) {
@@ -52,18 +56,20 @@ function parse(md) {
 			}
 			const r = /^ {0,3}(?:[-*+]|\d+[.)])[ \t]+\[([^\]]*)\]\(#([^)\s]+)\)[ \t]*$/.exec(line.text);
 			if (r && node) {
-				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), lang: lang?.code ?? null, line: lineNo, start: line.start, end: line.end });
+				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), scope: scope(), line: lineNo, start: line.start, end: line.end });
 				return;
 			}
-			const d = /^ {0,3}<div lang="([\w-]+)">[ \t]*$/.exec(line.text);
+			const d = /^ {0,3}<div ([\w-]+)="([\w-]+)">[ \t]*$/.exec(line.text);
 			if (d && node) {
-				if (lang) errors.push({ line: lineNo, msg: '`<div lang>` inside another' });
-				lang = { code: d[1], line: lineNo };
-				if (!langs.includes(d[1])) langs.push(d[1]);
+				const [, key, value] = d;
+				if (scopes.some(s => s.key === key)) errors.push({ line: lineNo, msg: `\`<div ${key}>\` inside another` });
+				scopes.push({ key, value, line: lineNo });
+				const values = key === 'lang' ? langs : (dims[key] ??= []);
+				if (!values.includes(value)) values.push(value);
 				return;
 			}
-			if (lang && /^ {0,3}<\/div>[ \t]*$/.test(line.text)) {
-				lang = null;
+			if (scopes.length && /^ {0,3}<\/div>[ \t]*$/.test(line.text)) {
+				scopes.pop();
 				return;
 			}
 			// a link reference definition: invisible when the md is rendered elsewhere
@@ -82,64 +88,49 @@ function parse(md) {
 			}
 			if (rule && !node) return;
 		}
-		if (node) node.body.push({ text: line.text, lang: lang?.code ?? null });
+		if (node) node.body.push({ text: line.text, scope: scope() });
 		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text outside any card' });
 	});
-	if (lang) errors.push({ line: lang.line, msg: `\`<div lang="${lang.code}">\` not closed` });
+	for (const s of scopes) errors.push({ line: s.line, msg: `\`<div ${s.key}="${s.value}">\` not closed` });
 	if (node) node.end = md.length;
 	if (nodes.length === 0 && errors.length === 0) errors.push({ line: 1, msg: 'no headings' });
 
 	const byId = new Map();
-	const slots = new Map();
 	for (const n of nodes) {
 		for (const l of n.labels) if (!labels.some(d => d.name === l)) errors.push({ line: n.line, msg: `unknown label \`.${l}\`` });
-		if (byId.has(n.id)) errors.push({ line: n.line, msg: `duplicate of line ${byId.get(n.id).line}: same heading and tags` });
-		byId.set(n.id, n);
-		if (!slots.has(n.slot)) slots.set(n.slot, []);
-		slots.get(n.slot).push(n);
+		if (byId.has(n.id)) errors.push({ line: n.line, msg: `duplicate of line ${byId.get(n.id).line}: same slot` });
+		else byId.set(n.id, n);
 	}
 
 	const edges = [];
 	const entered = new Set();
 	for (const n of nodes) {
 		for (const r of n.responses) {
-			if (r.label.trim() === '' && n.responses.length > 1) errors.push({ line: r.line, msg: "an unlabeled response must be its card's only one" });
-			const targets = slots.get(r.slot);
-			if (!targets) {
+			if (r.label.trim() === '' && n.responses.some(o => o !== r && Object.entries(o.scope).every(([k, v]) => (r.scope[k] ?? v) === v))) errors.push({ line: r.line, msg: "an unlabeled response must be its card's only one" });
+			if (!byId.has(r.slot)) {
 				errors.push({ line: r.line, msg: `response links to unknown slot #${r.slot}` });
 				continue;
 			}
 			entered.add(r.slot);
-			for (const t of targets) edges.push({ from: n.id, to: t.id, label: r.label, lang: r.lang, start: r.start, end: r.end });
+			edges.push({ from: n.id, to: r.slot, label: r.label, scope: r.scope, start: r.start, end: r.end });
 		}
 		delete n.responses;
 	}
-	for (const n of nodes) n.root = !entered.has(n.slot);
+	for (const n of nodes) n.root = !entered.has(n.id);
 
-	const graph = { nodes, edges, labels, marks, preamble, langs, dims: {}, errors };
+	for (const vs of Object.values(dims)) vs.sort();
+	const graph = { nodes, edges, labels, marks, preamble, langs, dims, errors };
 	if (errors.length === 0) {
 		const reached = visible(graph, {});
 		for (const n of nodes) if (!reached.has(n.id)) errors.push({ line: n.line, msg: `"${n.title}" is unreachable from any root` });
 	}
 
-	for (const n of nodes) {
-		for (const [k, v] of Object.entries(n.tags)) {
-			graph.dims[k] ??= [];
-			if (!graph.dims[k].includes(v)) graph.dims[k].push(v);
-		}
-	}
-	for (const vs of Object.values(graph.dims)) vs.sort();
-	for (const m of marks) {
-		if (m.dim === null && !langs.includes(m.value)) errors.push({ line: m.line, msg: `no \`<div lang="${m.value}">\`` });
-		else if (m.dim !== null && !(m.dim in graph.dims)) errors.push({ line: m.line, msg: `no variant is tagged \`${m.dim}\`` });
-		else if (m.dim !== null && !graph.dims[m.dim].includes(m.value)) errors.push({ line: m.line, msg: `\`${m.dim}\` has no variant \`${m.value}\`` });
-	}
+	for (const m of marks) if (!(m.dim === null ? langs : (dims[m.dim] ?? [])).includes(m.value)) errors.push({ line: m.line, msg: `no \`<div ${m.dim ?? 'lang'}="${m.value}">\`` });
 	return graph;
 }
 
 // `at`: offset of `raw` in the md, so `attrs` can locate the `{…}` block
 function heading(raw, at, start, line, errors) {
-	const tags = {};
 	const labels = [];
 	let title = raw.trim();
 	const attrs = { start: at + title.length, end: at + title.length };
@@ -154,42 +145,35 @@ function heading(raw, at, start, line, errors) {
 				continue;
 			}
 			const [k, v] = token.split('=');
-			if (k in tags) errors.push({ line, msg: `tag key \`${k}\` given twice` });
-			tags[k] = v;
+			errors.push({ line, msg: `\`${token}\` on a heading: variants are \`<div ${k}="${v}">\` scopes` });
 		}
 	}
 	if (title === '') errors.push({ line, msg: 'empty heading' });
 	// github's anchor slug, so slot links also resolve when the md is viewed there
-	const slot = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
-	const keys = Object.keys(tags).sort();
-	const id = keys.length ? `${slot}{${keys.map(k => `${k}=${tags[k]}`).join(' ')}}` : slot;
-	return { id, slot, title, titles: {}, tags, labels, attrs, line, start, end: null, body: [], responses: [] };
+	const id = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
+	return { id, title, titles: {}, labels, attrs, line, start, end: null, body: [], responses: [] };
 }
 
-// selection.variants: {dim: value}; a dim without a chosen value admits every variant. No selection.lang admits every language
 function visible(graph, selection) {
-	const chosen = selection.variants ?? {};
-	const admits = n => Object.entries(n.tags).every(([k, v]) => !(k in chosen) || chosen[k] === v);
 	const out = new Map();
-	for (const e of graph.edges.filter(e => inLang(e, selection))) {
+	for (const e of graph.edges.filter(e => inScope(e, selection))) {
 		if (!out.has(e.from)) out.set(e.from, []);
 		out.get(e.from).push(e.to);
 	}
-	const byId = new Map(graph.nodes.map(n => [n.id, n]));
 	const seen = new Set();
-	const stack = graph.nodes.filter(n => n.root && admits(n)).map(n => n.id);
+	const stack = graph.nodes.filter(n => n.root).map(n => n.id);
 	while (stack.length) {
 		const id = stack.pop();
 		if (seen.has(id)) continue;
 		seen.add(id);
-		for (const to of out.get(id) ?? []) if (admits(byId.get(to))) stack.push(to);
+		stack.push(...(out.get(id) ?? []));
 	}
 	return seen;
 }
 
-// a body line or edge, scoped to `item.lang` or to none
-function inLang(item, selection) {
-	return !item.lang || !selection.lang || item.lang === selection.lang;
+// a body line or edge in the selection: selection.variants is {dim: value}; a dim without a chosen value, or no selection.lang, admits every value
+function inScope(item, selection) {
+	return Object.entries(item.scope).every(([k, v]) => ((k === 'lang' ? selection.lang : selection.variants?.[k]) ?? v) === v);
 }
 
-if (typeof module !== 'undefined') module.exports = { parse, visible, inLang };
+if (typeof module !== 'undefined') module.exports = { parse, visible, inScope };

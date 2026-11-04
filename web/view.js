@@ -79,11 +79,13 @@ function render() {
 
 	const shown = visible(graph, sel);
 	const nodes = graph.nodes.filter(n => shown.has(n.id));
-	const edges = graph.edges.filter(e => shown.has(e.from) && shown.has(e.to) && inLang(e, sel));
+	const edges = graph.edges.filter(e => shown.has(e.from) && shown.has(e.to) && inScope(e, sel));
 	const current = sel.path.at(-1);
 	const walked = new Set(sel.path.slice(1).map((id, i) => `${sel.path[i]}\n${id}`));
 	const exits = new Set(edges.map(e => e.from));
 	const hue = e => (graph.nodes.findIndex(n => n.id === e.to) * 110) % 360; // by target node: 36 hues before repeating, 110° apart so consecutive nodes differ
+	const pending = scope => Object.entries(scope).filter(([k]) => k !== 'lang' && !(k in sel.variants)); // its variants not chosen yet
+	const chips = vs => vs.map(([k, v]) => el('span', 'chip', `${k}=${v}`));
 
 	for (const n of nodes) {
 		const card = el('article', 'card');
@@ -92,7 +94,6 @@ function render() {
 		card.classList.toggle('current', n.id === current);
 		card.classList.toggle('terminal', !exits.has(n.id));
 		const head = el('header');
-		for (const [k, v] of Object.entries(n.tags)) head.append(el('span', 'chip', `${k}=${v}`));
 		for (const name of n.labels) {
 			const p = pill(graph.labels.find(l => l.name === name));
 			const x = el('button', 'unlabel', '×');
@@ -116,7 +117,26 @@ function render() {
 		stick.title = 'drag onto another card to add a response to it';
 		stick.addEventListener('click', e => e.stopPropagation());
 		stick.addEventListener('pointerdown', e => drag(e, n));
-		card.append(del, stick, head, el('div', 'body', marked.parse(n.body.filter(l => inLang(l, sel)).map(l => l.text).join('\n'))));
+		const body = el('div', 'body');
+		const runs = []; // consecutive lines pending the same variants
+		for (const l of n.body.filter(l => inScope(l, sel))) {
+			const vs = pending(l.scope);
+			if (JSON.stringify(runs.at(-1)?.vs) !== JSON.stringify(vs)) runs.push({ vs, lines: [] });
+			runs.at(-1).lines.push(l.text);
+		}
+		for (const { vs, lines } of runs) {
+			const html = el('template', '', marked.parse(lines.join('\n'))).content;
+			if (!vs.length) {
+				body.append(html);
+				continue;
+			}
+			const variant = el('section', 'variant');
+			variant.title = 'choose this variant';
+			variant.append(...chips(vs), html);
+			variant.addEventListener('click', () => Object.assign(sel.variants, Object.fromEntries(vs))); // before the card's own click renders
+			body.append(variant);
+		}
+		card.append(del, stick, head, body);
 		card.addEventListener('click', () => click(n));
 		canvas.append(card);
 		cards.set(n.id, card);
@@ -124,10 +144,12 @@ function render() {
 	const labels = edges.map(e => {
 		if (e.label.trim() === '') return null; // walked by clicking the card it leads to
 		const label = el('button', 'label', marked.parseInline(e.label));
+		label.prepend(...chips(pending(e.scope)));
 		label.classList.toggle('visited', walked.has(`${e.from}\n${e.to}`));
 		label.style.setProperty('--hue', hue(e));
 		label.addEventListener('click', () => {
 			if (editing) return;
+			Object.assign(sel.variants, Object.fromEntries(pending(e.scope)));
 			go(e.to, e.from);
 			if (sel.calling) reveal(e.to);
 		});
@@ -135,63 +157,16 @@ function render() {
 		return label;
 	});
 
-	// variants of a slot share a rank: rank the graph with each slot contracted to one node, then lay out with those ranks
-	const slotOf = new Map(nodes.map(n => [n.id, n.slot]));
-	const inSlot = e => e.from !== e.to && slotOf.get(e.from) === slotOf.get(e.to);
-	const slots = new dagre.graphlib.Graph({ multigraph: true });
-	slots.setGraph({});
-	for (const n of nodes) slots.setNode(n.slot, {});
-	edges.forEach((e, i) => slotOf.get(e.from) !== slotOf.get(e.to) && slots.setEdge(slotOf.get(e.from), slotOf.get(e.to), {}, String(i)));
-	dagre.layout(slots);
-	const rank = id => slots.node(slotOf.get(id)).rank;
-	const ranker = lg => {
-		const top = Math.min(...nodes.map(n => rank(n.id)));
-		for (const v of lg.nodes()) {
-			assert(slotOf.has(v) || v === lg.graph().nestingRoot, `dagre ranks an unknown node ${v}`);
-			lg.node(v).rank = slotOf.has(v) ? rank(v) : top - 1;
-		}
-	};
-	const flipped = edges.map(e => rank(e.to) < rank(e.from)); // oriented as the slot ranking did, so dagre's own cycle breaking finds nothing to reverse
-
 	const g = new dagre.graphlib.Graph({ multigraph: true });
-	g.setGraph({ rankdir: RANKDIR, ranker, nodesep: 36 * spacing, ranksep: 60 * spacing, edgesep: 16 * spacing, marginx: 48, marginy: 48 });
+	g.setGraph({ rankdir: RANKDIR, nodesep: 36 * spacing, ranksep: 60 * spacing, edgesep: 16 * spacing, marginx: 48, marginy: 48 });
 	for (const n of nodes) g.setNode(n.id, { width: cards.get(n.id).offsetWidth, height: cards.get(n.id).offsetHeight });
 	edges.forEach((e, i) => {
-		if (inSlot(e)) return;
-		const [v, w] = flipped[i] ? [e.to, e.from] : [e.from, e.to];
 		const [width, height] = labels[i] ? [labels[i].offsetWidth, labels[i].offsetHeight] : [0, 0];
-		g.setEdge(v, w, { width, height, labelpos: 'c' }, String(i));
+		g.setEdge(e.from, e.to, { width, height, labelpos: 'c' }, String(i));
 	});
 	dagre.layout(g);
 	place(g);
-
-	const [axis, cross, size, crossSize] = RANKDIR === 'TB' ? ['y', 'x', 'height', 'width'] : ['x', 'y', 'width', 'height'];
-	const lead = id => g.node(id)[axis] - g.node(id)[size] / 2;
-	const slotLead = new Map();
-	for (const n of nodes) slotLead.set(n.slot, Math.min(slotLead.get(n.slot) ?? Infinity, lead(n.id)));
-	const shift = new Map(nodes.map(n => [n.id, slotLead.get(n.slot) - lead(n.id)])); // stays inside the rank band: the slot's tallest card sets slotLead
-	for (const n of nodes) g.node(n.id)[axis] += shift.get(n.id);
-
-	const routes = edges.map((e, i) => {
-		if (inSlot(e)) {
-			// shortcut: a straight line across the rank, crosses any card between the two variants; route through dagre if that shows up
-			const [a, b] = [g.node(e.from), g.node(e.to)];
-			const dir = Math.sign(b[cross] - a[cross]);
-			const at = slotLead.get(slotOf.get(e.from)) + Math.min(a[size], b[size]) / 2;
-			const points = [{ [cross]: a[cross] + dir * a[crossSize] / 2, [axis]: at }, { [cross]: b[cross] - dir * b[crossSize] / 2, [axis]: at }];
-			return { points, x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
-		}
-		const { points, x, y } = g.edge(...(flipped[i] ? [e.to, e.from] : [e.from, e.to]), String(i));
-		if (flipped[i]) points.reverse();
-		if (e.from === e.to) {
-			const label = { x, y };
-			for (const p of [...points, label]) p[axis] += shift.get(e.from);
-			return { points, ...label };
-		}
-		points[0][axis] += shift.get(e.from);
-		points.at(-1)[axis] += shift.get(e.to);
-		return { points, x, y };
-	});
+	const [cross, crossSize] = RANKDIR === 'TB' ? ['x', 'width'] : ['y', 'height'];
 
 	for (const n of nodes) {
 		const { x, y, width, height } = g.node(n.id);
@@ -203,7 +178,7 @@ function render() {
 	svg.setAttribute('height', height);
 	svg.innerHTML = '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>';
 	edges.forEach((e, i) => {
-		const { points, x, y } = routes[i];
+		const { points, x, y } = g.edge(e.from, e.to, String(i));
 		const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 		let d = `M${points[0].x},${points[0].y}`;
 		for (let j = 1; j < points.length - 1; j++) {
@@ -220,8 +195,8 @@ function render() {
 	});
 	canvas.prepend(svg);
 	Object.assign(canvas.style, { width: `${width}px`, height: `${height}px` });
-	const top = Math.min(...nodes.map(n => rank(n.id)));
-	const first = nodes.filter(n => rank(n.id) === top).map(n => g.node(n.id));
+	const top = Math.min(...nodes.map(n => g.node(n.id).rank));
+	const first = nodes.map(n => g.node(n.id)).filter(p => p.rank === top);
 	const mid = (Math.min(...first.map(p => p[cross] - p[crossSize] / 2)) + Math.max(...first.map(p => p[cross] + p[crossSize] / 2))) / 2;
 	canvas.style.setProperty('--head-left', `${mid}px`);
 	canvas.style.setProperty('--head-right', `${g.graph()[crossSize] - mid}px`);
@@ -513,7 +488,6 @@ function click(n) {
 function go(id, from) {
 	if (from !== undefined && sel.path.at(-1) !== from) sel.path.push(from);
 	if (sel.path.at(-1) !== id) sel.path.push(id);
-	Object.assign(sel.variants, graph.nodes.find(n => n.id === id).tags);
 	render();
 }
 
@@ -561,14 +535,12 @@ function travel(from, to) {
 
 // the heading's `{…}` block rewritten to carry `labels`
 function attrs(n, labels) {
-	const tokens = [...Object.entries(n.tags).map(([k, v]) => `${k}=${v}`), ...labels.map(l => `.${l}`)];
-	return { start: n.attrs.start, end: n.attrs.end, text: tokens.length ? ` {${tokens.join(' ')}}` : '' };
+	return { start: n.attrs.start, end: n.attrs.end, text: labels.length ? ` {${labels.map(l => `.${l}`).join(' ')}}` : '' };
 }
 
 function remove(n) {
-	const last = graph.nodes.every(m => m === n || m.slot !== n.slot);
 	const inside = e => e.start >= n.start && e.end <= n.end;
-	const responses = last ? graph.edges.filter(e => e.to === n.id && !inside(e)) : [];
+	const responses = graph.edges.filter(e => e.to === n.id && !inside(e));
 	if (!confirm(`Delete "${n.title}"?${responses.length ? ` ${responses.length} response${responses.length > 1 ? 's' : ''} leading to it go too.` : ''}`)) return;
 	const errors = commit(splice([{ start: n.start, end: n.end, text: '' }, ...responses.map(e => ({ start: e.start, end: e.end, text: '' }))]));
 	if (errors) alert(`Cannot delete "${n.title}":\n${errors.map(e => e.msg).join('\n')}`);
@@ -599,7 +571,7 @@ function drag(down, n) {
 		done.abort();
 		path.remove();
 		target?.classList.remove('target');
-		if (drop && target) connect(n, graph.nodes.find(m => m.id === target.dataset.id).slot);
+		if (drop && target) connect(n, target.dataset.id);
 	};
 	stick.addEventListener('pointerup', finish(true), { signal: done.signal });
 	stick.addEventListener('pointercancel', finish(false), { signal: done.signal });
@@ -608,7 +580,7 @@ function drag(down, n) {
 // the new response goes after `n`'s last one, or ends its section
 function connect(n, slot) {
 	const response = `- [TODO](#${slot})`;
-	const exits = graph.edges.filter(e => e.from === n.id && !e.lang); // after a scoped one it would land inside its `<div lang>`
+	const exits = graph.edges.filter(e => e.from === n.id && !Object.keys(e.scope).length); // after a scoped one it would land inside its `<div>`
 	const at = exits.length ? Math.max(...exits.map(e => e.end)) : n.start + md.slice(n.start, n.end).trimEnd().length;
 	const text = !exits.length ? `\n\n${response}` : md[at - 1] === '\n' ? `${response}\n` : `\n${response}`;
 	const errors = commit(splice([{ start: at, end: at, text }]));
