@@ -2,11 +2,11 @@ use std::{
 	io::{Read, Write},
 	net::TcpStream,
 	path::Path,
-	process::Command,
+	process::{Child, Command},
 	time::{Duration, Instant},
 };
 
-use v_fixtures::{Fixture, FixtureFile};
+use v_fixtures::{Fixture, FixtureFile, TempFixture};
 
 fn build(test: &str, flags: &[&str], md: &str) -> Result<String, String> {
 	let temp = single_file("script.md", md).write_to_tempdir_with_prefix(&format!("scripters_{test}_"));
@@ -74,16 +74,19 @@ fn request(addr: &str, host: &str, method: &str, path: &str, if_match: Option<&s
 	(head.split(' ').nth(1).unwrap().parse().unwrap(), body.to_owned())
 }
 
-#[test]
-fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
-	let temp = single_file("script.md", "# One\n").write_to_tempdir_with_prefix("scripters_watch_");
+/// `watch` of the `script.md` in `temp`, as (process, host:port)
+fn serve(temp: &TempFixture) -> (Child, String) {
 	let dir = temp.root.clone();
 	let xdg_open = temp.path("xdg-open");
 	temp.write("xdg-open", &format!("#!/bin/sh\necho \"$1\" > {}/url\n", dir.display()));
 	std::fs::set_permissions(&xdg_open, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-	let md = temp.path("script.md");
 	let path = format!("{}:{}", dir.display(), std::env::var("PATH").unwrap());
-	let mut child = Command::new(env!("CARGO_BIN_EXE_scripters")).arg("watch").arg(&md).env("PATH", path).spawn().unwrap();
+	let child = Command::new(env!("CARGO_BIN_EXE_scripters"))
+		.arg("watch")
+		.arg(temp.path("script.md"))
+		.env("PATH", path)
+		.spawn()
+		.unwrap();
 
 	let started = Instant::now();
 	//LOOP: bounded by the 10s assert
@@ -96,7 +99,21 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 		assert!(started.elapsed() < Duration::from_secs(10), "watch never opened a url");
 		std::thread::sleep(Duration::from_millis(20));
 	};
-	let addr = url.trim().strip_prefix("http://").unwrap().trim_end_matches('/').to_owned();
+	(child, url.trim().strip_prefix("http://").unwrap().trim_end_matches('/').to_owned())
+}
+
+fn chromium() -> &'static str {
+	["chromium", "chromium-browser", "google-chrome"]
+		.into_iter()
+		.find(|b| Command::new(b).arg("--version").output().is_ok_and(|o| o.status.success()))
+		.expect("a chromium on PATH")
+}
+
+#[test]
+fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
+	let temp = single_file("script.md", "# One\n").write_to_tempdir_with_prefix("scripters_watch_");
+	let md = temp.path("script.md");
+	let (mut child, addr) = serve(&temp);
 	let get = |path| request(&addr, &addr, "GET", path, None, "");
 	let put = |if_match: &str, body| request(&addr, &addr, "PUT", "/", Some(if_match), body);
 
@@ -148,11 +165,7 @@ button('.md').click();
 		.replace("@DRIVE@", drive);
 	temp.write("script.html", &html.replacen("</body>", &capture, 1));
 	let page = temp.path("script.html");
-	let browser = ["chromium", "chromium-browser", "google-chrome"]
-		.into_iter()
-		.find(|b| Command::new(b).arg("--version").output().is_ok_and(|o| o.status.success()))
-		.expect("a chromium on PATH");
-	let out = Command::new(browser)
+	let out = Command::new(chromium())
 		.args(["--headless", "--disable-gpu", "--no-first-run", "--no-sandbox", "--dump-dom"])
 		.arg(format!("--user-data-dir={}", temp.path("profile").display()))
 		.arg(format!("file://{}", page.display()))
@@ -249,11 +262,69 @@ fn new_card_opens_its_editor() {
 	let press = |key: &str| format!("document.body.dispatchEvent(new KeyboardEvent('keydown', {{ key: '{key}', bubbles: true }}));");
 	let layout = "[layout=\"bfs\"]: #\n\n---\n\n";
 	let write = "const ta = document.querySelector('#canvas textarea'); ta.value = '# B\\nHi'; ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));";
-	check_save(&[], "# A\n", &format!("{}{write}", press("n")), &format!("{layout}# A\n\n# B\nHi\n"));
+	check_save(&[], "# A\n", &format!("{}{write}", press("N")), &format!("{layout}# A\n\n# B\nHi\n"));
 	check_save(
 		&[],
 		"# New card\n",
-		&format!("{}{}", press("n"), press("Escape")),
+		&format!("{}{}", press("N"), press("Escape")),
 		&format!("{layout}# New card\n\n# New card 2\n"),
+	);
+}
+
+/// The page `watch` serves for `md` runs the async `drive`, which `press(key, modifiers)` and `sleep(ms)` help; then the md on disk must be `expected`
+#[track_caller]
+fn check_watch(md: &str, drive: &str, expected: &str) {
+	let temp = single_file("script.md", md).write_to_tempdir_with_prefix("scripters_watch_page_");
+	let (mut child, addr) = serve(&temp);
+	let (status, html) = request(&addr, &addr, "GET", "/", None, "");
+	assert_eq!(status, 200);
+	// the page runs from file:// so the drive can be added to it; its requests are sent back to the server
+	let head = format!("<head>\n<script>const served = fetch; window.fetch = (url, o) => served(new URL(url, 'http://{addr}/'), o);</script>");
+	let drive = format!(
+		"<script>
+const press = (key, o) => document.body.dispatchEvent(new KeyboardEvent('keydown', {{ key, bubbles: true, ...o }}));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+(async () => {{ {drive} }})();
+</script>
+</body>"
+	);
+	temp.write("page.html", &html.replacen("<head>", &head, 1).replacen("</body>", &drive, 1));
+	let out = Command::new(chromium())
+		.args([
+			"--headless",
+			"--disable-gpu",
+			"--no-first-run",
+			"--no-sandbox",
+			"--disable-web-security",
+			"--virtual-time-budget=10000",
+			"--dump-dom",
+		])
+		.arg(format!("--user-data-dir={}", temp.path("profile").display()))
+		.arg(format!("file://{}", temp.path("page.html").display()))
+		.output()
+		.unwrap();
+	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+	child.kill().unwrap();
+	child.wait().unwrap();
+	assert_eq!(temp.read("script.md"), expected);
+}
+
+#[test]
+fn watch_page_edits_merge_with_the_md_saved_elsewhere() {
+	let add_card =
+		"press('N'); const ta = document.querySelector('#canvas textarea'); ta.value = '# B\\nHi'; ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));";
+	let save_elsewhere = |md: &str| format!("await fetch('/', {{ method: 'PUT', headers: {{ 'If-Match': live }}, body: '{md}' }}); await sleep(1000);");
+	let save = "press('s', { ctrlKey: true }); await sleep(1000);";
+	let layout = "[layout=\"bfs\"]: #\n\n---\n\n";
+	check_watch(
+		"# A\n",
+		&format!("{add_card}{}{save}", save_elsewhere("# A\\nedited elsewhere\\n")),
+		&format!("{layout}# A\nedited elsewhere\n\n# B\nHi\n"),
+	);
+	// same line edited on both sides: the page takes the disk's, and undo brings its own back
+	check_watch(
+		"# A\n",
+		&format!("{add_card}{}press('u'); {save}", save_elsewhere("# A\\n\\n# C\\n")),
+		&format!("{layout}# A\n\n# B\nHi\n"),
 	);
 }

@@ -279,7 +279,7 @@ function renderBar() {
 	button('+', 'zoom in', ['+', '='], () => zoomTo(zoom * ZOOM_STEP, ...center()));
 	button('↶', 'undo an edit; Ctrl+Z too', ['u'], () => travel(undos, redos)).disabled = !undos.length;
 	button('↷', 'redo; Ctrl+Y, Ctrl+Shift+Z too', ['U'], () => travel(redos, undos)).disabled = !redos.length;
-	const add = button('⊞', 'new card', ['n'], create);
+	const add = button('⊞', 'new card', ['N'], create);
 	add.classList.add('push');
 	add.disabled = graph.errors.length > 0;
 	button('Labels', 'define the labels cards carry', ['l'], () => {
@@ -540,6 +540,11 @@ function splice(edits) {
 function commit(next) {
 	const g = SCRIPT_TAG.test(next) ? { errors: [{ line: 0, msg: 'a <script> tag cannot be embedded' }] } : parse(next);
 	if (g.errors.length) return g.errors;
+	adopt(next, g);
+	return null;
+}
+
+function adopt(next, g) {
 	if (next !== md) {
 		undos.push(md);
 		redos = [];
@@ -547,14 +552,32 @@ function commit(next) {
 	md = next;
 	graph = g;
 	render();
-	return null;
+}
+
+// the md on disk changed: unsaved edits merge into it, or on a clash wait in undo
+function sync(disk, version) {
+	const merged = md === saved ? disk : merge(saved, md, disk);
+	const g = merged !== null && parse(merged);
+	const clash = md !== saved && (!g || g.errors.length > 0);
+	live = version;
+	saved = disk;
+	if (clash) toast('The md changed on disk where this page has unsaved edits: showing the disk\'s, u brings the edits back', 8);
+	adopt(clash ? disk : merged, clash ? parse(disk) : g);
+}
+
+function toast(text, seconds) {
+	document.querySelector('.toast')?.remove();
+	const t = el('output', 'toast');
+	t.textContent = text;
+	t.style.animationDuration = `${seconds}s`;
+	t.addEventListener('animationend', () => t.remove());
+	document.body.append(t);
 }
 
 function travel(from, to) {
 	to.push(md);
 	md = from.pop();
-	graph = parse(md);
-	assert(!graph.errors.length, 'history holds only committed mds');
+	graph = parse(md); // a broken md from disk can be in history
 	editing = null;
 	render();
 }
@@ -641,7 +664,7 @@ function edit(n) {
 	ta.addEventListener('input', fit);
 	ta.addEventListener('click', e => e.stopPropagation());
 	ta.addEventListener('keydown', e => {
-		if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+		if (['Enter', 's'].includes(e.key) && (e.ctrlKey || e.metaKey)) { // Ctrl+S goes on to save
 			e.preventDefault();
 			const text = ta.value.trimEnd();
 			const base = md.slice(0, n.start).split('\n').length - 1;
@@ -649,6 +672,7 @@ function edit(n) {
 			editing = null;
 			const failed = commit(splice([{ start: n.start, end: n.end, text: text && text + (n.end < md.length ? '\n\n' : '\n') }]));
 			if (failed) {
+				e.stopPropagation();
 				editing = n.id;
 				errors.replaceChildren(errorList(failed, e => (e.line > base && e.line <= base + lines ? `line ${e.line - base}: ${e.msg}` : e.line ? `elsewhere, document line ${e.line}: ${e.msg}` : e.msg)));
 			}
@@ -705,6 +729,7 @@ async function overwrite() {
 		}
 		live = await r.text();
 		wrote(text);
+		toast('Saved', 1.5);
 		return;
 	}
 	if (!window.showSaveFilePicker) {
@@ -778,6 +803,7 @@ document.addEventListener('keydown', e => {
 	} else if (e.key === 'c' && toStart()) { // once at the start, `c` is New call
 		return;
 	} else if (shortcuts.has(e.key)) {
+		e.preventDefault(); // `N` focuses a new card's editor, which would take the key's character
 		shortcuts.get(e.key).click();
 	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
 		e.preventDefault();
@@ -825,15 +851,18 @@ labelsDialog.addEventListener('close', () => (labelForm = null));
 addEventListener('beforeunload', e => md !== saved && e.preventDefault());
 if (live)
 	(async function poll() {
-		let version;
+		const asked = live; // a save meanwhile moves `live` past what this poll saw
+		const current = () => live === asked && !editing; // an open edit holds offsets into the md
 		try {
-			version = await (await fetch('/version')).text();
+			if ((await (await fetch('/version')).text()) !== live && current()) {
+				const page = new DOMParser().parseFromString(await (await fetch('/')).text(), 'text/html');
+				if (current()) sync(page.getElementById('src').textContent, page.documentElement.dataset.live);
+			}
 		} catch (e) {
 			if (e instanceof TypeError) return; // the watch stopped serving
 			throw e;
 		}
-		if (version !== live && md === saved) location.reload(); // unsaved edits stay; their Ctrl+S is refused as a conflict
-		else setTimeout(poll, 300);
+		setTimeout(poll, 300);
 	})();
 
 render();

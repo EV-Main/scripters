@@ -551,3 +551,26 @@ textarea {
 	max-width: 50rem;
 	margin: 2rem;
 }
+.toast {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 10;
+	max-width: 32rem;
+	padding: 6px 12px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--card);
+	box-shadow: 0 4px 16px var(--shadow);
+	font-size: 0.85rem;
+	pointer-events: none;
+	animation: toast linear forwards;
+}
+@keyframes toast {
+	80% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0;
+	}
+}

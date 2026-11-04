@@ -32,7 +32,7 @@ enum Command {
 		#[arg(long)]
 		open: bool,
 	},
-	/// serve the html on localhost and open it; the page reloads on every save of the md, and its Ctrl+S writes the md
+	/// serve the html on localhost and open it; the page follows every save of the md, and its Ctrl+S writes the md
 	Watch {
 		#[command(flatten)]
 		script: Script,
@@ -249,6 +249,7 @@ fn bundle(title: &str, page: &Page, md: &str, live: Option<&str>) -> Result<Stri
 		("/*@DAGRE@*/", include_str!("../web/vendor/dagre.min.js")),
 		("/*@MODEL@*/", include_str!("../web/model.js")),
 		("/*@PLACE@*/", include_str!("../web/place.js")),
+		("/*@MERGE@*/", include_str!("../web/merge.js")),
 		("/*@LAYOUT_JS@*/", include_str!("../web/layout.js")),
 		("/*@VIEW@*/", include_str!("../web/view.js")),
 	];

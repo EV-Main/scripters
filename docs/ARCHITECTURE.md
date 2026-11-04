@@ -7,13 +7,14 @@ script.scr.md ──bundle──► script.csr.html (md embedded verbatim + inli
 any edit ─► splice into md ─► reparse ─► rerender
 save     ─► same html with the embedded md replaced
 
-watch: script.scr.md ─bundle per request─► http://127.0.0.1 page ─poll /version─► reload
-       page Ctrl+S ─PUT md─► script.scr.md   (refused if it changed since the page loaded)
+watch: script.scr.md ─bundle per request─► http://127.0.0.1 page ─poll /version─► merge into the page's md
+       page Ctrl+S ─PUT md─► script.scr.md   (refused if it changed since the page last merged it)
 ```
 
 - `src/`: the bundler, and the `watch` server. It never parses the format.
 - `web/model.js`: the format's only parser, and its visibility rules; DOM-free.
 - `web/layout.js`: dagre's layout of the visible graph, one strategy per layout for which edges point back.
+- `web/merge.js`: line-level three-way merge of the page's unsaved edits with the md changed on disk; DOM-free.
 - `web/place.js`: cross-axis placement of dagre's layout (Graphviz dot's network-simplex pass); DOM-free.
 - `web/view.js`: everything the page does.
 
@@ -99,7 +100,9 @@ Every response leads one rank or more down, except one in each loop, which point
 - Deleting a card removes its section and the responses into its slot.
 - Renaming or deleting a label rewrites every heading carrying it.
 - Undo (`u`, Ctrl+Z) and redo (`U`, Ctrl+Y, Ctrl+Shift+Z) step through this page's edits; the history lives in page memory, not the md.
-- New card (⊞, `n`) appends `# New card` to the md, numbered past any slot it would collide with, and opens its editor.
+- Under `watch`, a change of the md on disk is an edit too: the page's unsaved edits merge into it by lines. Where both change the same lines, or the merge has errors, the page shows the disk's md and undo brings its edits back. An open card editor holds the change off until it closes.
+- Ctrl+S in a card editor commits it first.
+- New card (⊞, `N`) appends `# New card` to the md, numbered past any slot it would collide with, and opens its editor.
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside any scope, or at the end of its section if it has none.
 
 ### Selection

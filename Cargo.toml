@@ -16,6 +16,7 @@ include = [
     "web/vendor/dagre.min.js",
     "web/model.js",
     "web/place.js",
+    "web/merge.js",
     "web/layout.js",
     "web/view.js",
     "web/template.html",
