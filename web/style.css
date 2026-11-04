@@ -333,6 +333,10 @@ input {
 	color: var(--ink);
 	border-color: var(--muted);
 }
+.add option {
+	color: var(--ink);
+	background: var(--card); /* the popup list otherwise inherits the transparent select and renders white */
+}
 .body > :first-child {
 	margin-top: 0;
 }
