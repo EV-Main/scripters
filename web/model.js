@@ -103,7 +103,6 @@ function parse(md) {
 	}
 
 	const edges = [];
-	const entered = new Set();
 	for (const n of nodes) {
 		for (const r of n.responses) {
 			if (r.label.trim() === '' && n.responses.some(o => o !== r && Object.entries(o.scope).every(([k, v]) => (r.scope[k] ?? v) === v))) errors.push({ line: r.line, msg: "an unlabeled response must be its card's only one" });
@@ -111,18 +110,19 @@ function parse(md) {
 				errors.push({ line: r.line, msg: `response links to unknown slot #${r.slot}` });
 				continue;
 			}
-			entered.add(r.slot);
 			edges.push({ from: n.id, to: r.slot, label: r.label, scope: r.scope, start: r.start, end: r.end });
 		}
 		delete n.responses;
 	}
-	for (const n of nodes) n.root = !entered.has(n.id);
 
 	for (const vs of Object.values(dims)) vs.sort();
-	const graph = { nodes, edges, labels, marks, preamble, langs, dims, errors };
+	const graph = { nodes, edges, labels, marks, preamble, langs, dims, errors, warnings: [] };
 	if (errors.length === 0) {
 		const reached = visible(graph, {});
-		for (const n of nodes) if (!reached.has(n.id)) errors.push({ line: n.line, msg: `"${n.title}" is unreachable from any root` });
+		for (const n of nodes.filter(n => !reached.has(n.id))) {
+			n.stray = true;
+			graph.warnings.push({ line: n.line, msg: `"${n.title}" is unreachable from the first card` });
+		}
 	}
 
 	for (const m of marks) if (!(m.dim === null ? langs : (dims[m.dim] ?? [])).includes(m.value)) errors.push({ line: m.line, msg: `no \`<div ${m.dim ?? 'lang'}="${m.value}">\`` });
@@ -151,7 +151,7 @@ function heading(raw, at, start, line, errors) {
 	if (title === '') errors.push({ line, msg: 'empty heading' });
 	// github's anchor slug, so slot links also resolve when the md is viewed there
 	const id = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
-	return { id, title, titles: {}, labels, attrs, line, start, end: null, body: [], responses: [] };
+	return { id, title, titles: {}, labels, attrs, line, start, end: null, body: [], responses: [], stray: false };
 }
 
 function visible(graph, selection) {
@@ -161,7 +161,7 @@ function visible(graph, selection) {
 		out.get(e.from).push(e.to);
 	}
 	const seen = new Set();
-	const stack = graph.nodes.filter(n => n.root).map(n => n.id);
+	const stack = graph.nodes.filter((n, i) => i === 0 || n.stray).map(n => n.id); // strays still show, so they can be edited and linked
 	while (stack.length) {
 		const id = stack.pop();
 		if (seen.has(id)) continue;

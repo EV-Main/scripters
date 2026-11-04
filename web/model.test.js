@@ -10,11 +10,12 @@ function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
 		...graph.marks.map(m => `mark ${m.dim ?? 'language'}=${m.value}`),
-		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`),
+		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`),
 		...graph.edges.map(e => scoped(e.scope, `edge ${e.from} -[${e.label}]-> ${e.to}`)),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
 		...graph.errors.map(e => `error L${e.line}: ${e.msg}`),
+		...graph.warnings.map(e => `warning L${e.line}: ${e.msg}`),
 	].join('\n');
 }
 
@@ -40,7 +41,7 @@ test('slots and response edges', () => {
 		# Opening
 		`,
 		`
-		node hello-world "Hello, World!" root body="Say [hi](#opening) warmly.\\n\\n- not a [response](#opening) item"
+		node hello-world "Hello, World!" body="Say [hi](#opening) warmly.\\n\\n- not a [response](#opening) item"
 		node opening "Opening" body=""
 		edge hello-world -[Has time]-> opening
 		`,
@@ -58,7 +59,7 @@ test('every heading level starts a node; seven `#` are body', () => {
 		####### not a heading
 		`,
 		`
-		node a "A" root body=""
+		node a "A" body=""
 		node b "B" body=""
 		node c "C" body="####### not a heading"
 		edge a -[x]-> b
@@ -84,7 +85,7 @@ test('a heading starting with `-` ends the section and starts nothing', () => {
 		`,
 		`
 		label l oklch(0 0 0) ""
-		node a "A" root .l body=""
+		node a "A" .l body=""
 		node b "B" body=""
 		edge a -[x]-> b
 		langs: ru
@@ -104,7 +105,7 @@ test('an unlabeled response must be its card\'s only one', () => {
 		# C
 		`,
 		`
-		node a "A" root body=""
+		node a "A" body=""
 		node b "B" body=""
 		node c "C" body=""
 		edge a -[]-> b
@@ -125,7 +126,7 @@ test('an unlabeled response must be its card\'s only one', () => {
 		# B
 		`,
 		`
-		node a "A" root body=""
+		node a "A" body=""
 		node b "B" body=""
 		{k=v}edge a -[]-> b
 		{k=w}edge a -[x]-> b
@@ -135,13 +136,13 @@ test('an unlabeled response must be its card\'s only one', () => {
 });
 
 test('a heading takes no variant tags', () => {
-	checkParse('# A {k=v}\n', 'node a "A" root body=""\nerror L1: `k=v` on a heading: variants are `<div k="v">` scopes');
+	checkParse('# A {k=v}\n', 'node a "A" body=""\nerror L1: `k=v` on a heading: variants are `<div k="v">` scopes');
 });
 
 test('headings and responses inside code fences are body', () => {
 	checkParse(
 		'# A\n```md\n# Not a node\n- [x](#nowhere)\n```\n~~~\n```\n# still fenced\n~~~\n',
-		'node a "A" root body="```md\\n# Not a node\\n- [x](#nowhere)\\n```\\n~~~\\n```\\n# still fenced\\n~~~"',
+		'node a "A" body="```md\\n# Not a node\\n- [x](#nowhere)\\n```\\n~~~\\n```\\n# still fenced\\n~~~"',
 	);
 });
 
@@ -153,7 +154,7 @@ test('parse errors', () => {
 		# A
 		`,
 		`
-		node a "A" root body=""
+		node a "A" body=""
 		error L1: text outside any card
 		`,
 	);
@@ -163,7 +164,7 @@ test('parse errors', () => {
 		- [x](#b)
 		`,
 		`
-		node a "A" root body=""
+		node a "A" body=""
 		error L2: response links to unknown slot #b
 		`,
 	);
@@ -173,27 +174,9 @@ test('parse errors', () => {
 		## A
 		`,
 		`
-		node a "A" root body=""
-		node a "A" root body=""
+		node a "A" body=""
+		node a "A" body=""
 		error L2: duplicate of line 1: same slot
-		`,
-	);
-	checkParse(
-		`
-		# A
-		# B
-		- [x](#c)
-		# C
-		- [y](#b)
-		`,
-		`
-		node a "A" root body=""
-		node b "B" body=""
-		node c "C" body=""
-		edge b -[x]-> c
-		edge c -[y]-> b
-		error L2: "B" is unreachable from any root
-		error L4: "C" is unreachable from any root
 		`,
 	);
 	checkParse('', 'error L1: no headings');
@@ -212,7 +195,7 @@ test('labels are defined before the first heading and attached with `.name`', ()
 		`
 		label hot oklch(0.6 0.2 25) "Wants it \\"now\\""
 		label later oklch(0.55 0.15 145) ""
-		node a "A" root .hot .later body=""
+		node a "A" .hot .later body=""
 		node b "B" .later body=""
 		edge a -[x]-> b
 		`,
@@ -226,7 +209,7 @@ test('labels are defined before the first heading and attached with `.name`', ()
 		`,
 		`
 		label hot oklch(0.6 0.2 25) ""
-		node a "A" root .warm .hot body=""
+		node a "A" .warm .hot body=""
 		error L2: label \`hot\` defined twice
 		error L3: text outside any card
 		error L4: label \`.hot\` given twice
@@ -261,7 +244,7 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 		label l oklch(0 0 0) ""
 		mark k=v
 		mark language=ru
-		node a "A" root body="{lang=ru}a"
+		node a "A" body="{lang=ru}a"
 		node b "B" body=""
 		edge a -[x]-> b
 		langs: ru
@@ -282,12 +265,52 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 		mark k=x
 		mark j=v
 		mark language=en
-		node a "A" root body=""
+		node a "A" body=""
 		dim k: v
 		error L2: a second mark for \`k\`
 		error L1: no \`<div k="x">\`
 		error L3: no \`<div j="v">\`
 		error L4: no \`<div lang="en">\`
+		`,
+	);
+});
+
+test('cards the first card cannot reach are warned of, and still shown', () => {
+	const md = `
+		# A
+		# B
+		- [x](#c)
+		# C
+		- [y](#b)
+	`;
+	checkParse(
+		md,
+		`
+		node a "A" body=""
+		node b "B" stray body=""
+		node c "C" stray body=""
+		edge b -[x]-> c
+		edge c -[y]-> b
+		warning L2: "B" is unreachable from the first card
+		warning L4: "C" is unreachable from the first card
+		`,
+	);
+	checkVisible(md, {}, ['a', 'b', 'c']);
+});
+
+test('the call starts at the first card even when a response leads back to it', () => {
+	checkParse(
+		`
+		# A
+		- [x](#b)
+		# B
+		- [back](#a)
+		`,
+		`
+		node a "A" body=""
+		node b "B" body=""
+		edge a -[x]-> b
+		edge b -[back]-> a
 		`,
 	);
 });
@@ -331,7 +354,7 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		# B
 		`,
 		`
-		node a "A" root ru="А" body="{lang=ru}\\n{lang=ru}Привет\\n{lang=en}Hi\\n\\n> both"
+		node a "A" ru="А" body="{lang=ru}\\n{lang=ru}Привет\\n{lang=en}Hi\\n\\n> both"
 		node b "B" body=""
 		{lang=ru}edge a -[Да]-> b
 		{lang=en}edge a -[Yes]-> b
@@ -357,7 +380,7 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		# B
 		`,
 		`
-		node a "A" root de="A1" fr="B" body=""
+		node a "A" de="A1" fr="B" body=""
 		langs: ru en de fr
 		error L3: \`<div lang>\` inside another
 		error L8: labels go on the main heading
@@ -410,7 +433,7 @@ test('variant scopes split one card and nest with language scopes either way', (
 		# Pitch
 		`,
 		`
-		node opening "Opening" root ru="Начало" body="Hi.\\n{opener=warm}Congrats on the new office.\\n{opener=warm lang=ru}Поздравляю.\\n{lang=ru}\\n{lang=ru opener=cold}Сколько звонков?\\n{opener=cold}How many calls?"
+		node opening "Opening" ru="Начало" body="Hi.\\n{opener=warm}Congrats on the new office.\\n{opener=warm lang=ru}Поздравляю.\\n{lang=ru}\\n{lang=ru opener=cold}Сколько звонков?\\n{opener=cold}How many calls?"
 		node pitch "Pitch" body=""
 		{opener=warm lang=ru}edge opening -[Да]-> pitch
 		{opener=cold}edge opening -[Gives a number]-> pitch
@@ -432,7 +455,7 @@ test('variant scopes split one card and nest with language scopes either way', (
 		<div j="v">
 		`,
 		`
-		node a "A" root body=""
+		node a "A" body=""
 		langs: ru
 		dim k: v w
 		dim j: v
@@ -467,7 +490,7 @@ const VARIANTS = `
 	- [handled](#close)
 `;
 
-test('unselected dims admit every variant; cycles and multiple roots', () => {
+test('unselected dims admit every variant; cycles and strays', () => {
 	checkVisible(VARIANTS, {}, ['intro', 'opening', 'warm-pitch', 'cold-pitch', 'objection', 'close', 'price-objection']);
 });
 

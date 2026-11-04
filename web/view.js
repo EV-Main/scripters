@@ -206,6 +206,11 @@ function render() {
 function renderBar() {
 	bar.replaceChildren(el('strong', 'title', document.title));
 	if (md !== saved) bar.append(el('span', 'dirty', '● unsaved'));
+	if (graph.warnings.length) {
+		const warnings = el('span', 'warnings', `⚠ ${graph.warnings.length} warning${graph.warnings.length > 1 ? 's' : ''}`);
+		warnings.title = graph.warnings.map(w => `line ${w.line}: ${w.msg}`).join('\n');
+		bar.append(warnings);
+	}
 	for (const [dim, values] of Object.entries(graph.dims)) {
 		const select = el('select');
 		for (const v of ['all', ...values]) select.append(new Option(v, v, false, sel.variants[dim] === v));

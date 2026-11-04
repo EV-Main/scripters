@@ -28,8 +28,8 @@ Hi, this is **Sam** from …
 - A list item consisting of exactly one `[label](#slot)` is a **response**: an edge to the node of that slot. It is removed from the card body and drawn as an edge label. Links inside prose stay links.
 - An empty `[](#slot)` is an unlabeled response, drawn as a bare edge; it is an error if its card has another response whose scope it agrees with.
 - A response to a slot that has no nodes is an error.
-- Roots are nodes whose slot has no incoming edge. The graph may have several roots, rejoin and cycle.
-- A node unreachable from every root is an error.
+- The first node is the **root**: the call starts there. The graph may rejoin and cycle, back into the root too.
+- A node the root does not reach, one no response leads to included, is a **stray**: a warning, not an error. Strays are drawn as if the call could start at them, so they can still be edited and linked.
 
 ## Labels
 - A line `[name]: <oklch(L C H)> "description"` outside any section defines a label: a link reference definition, so it renders as nothing elsewhere. `name` is `[\w-]+`; the description is optional.
@@ -64,7 +64,7 @@ Ctrl+S and Save ▾ .html / .md write the md as it is, except:
 ## Selection
 `{ variants: {dim → value}, lang, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
 
-- A node is **visible** iff it is reachable from a root along responses that agree with the selection.
+- A node is **visible** iff it is reachable from the root or a stray along responses that agree with the selection.
 - Cards show only the lines that agree with the selection. Lines and responses of a dimension with no value chosen show framed with their variant. Unlike variants, a language is always chosen while the document has any.
 - After every reparse, path entries and variant values absent from the document are dropped; an absent language becomes the document's first.
 - Clicking a card or edge label appends it to the path; clicking a framed variant or a response's label also chooses the variants it is framed with.

@@ -76,6 +76,11 @@ input {
 	color: var(--danger);
 	font-size: 0.85rem;
 }
+#bar .warnings {
+	color: var(--chip-ink);
+	font-size: 0.85rem;
+	cursor: help;
+}
 #bar .dim {
 	color: var(--muted);
 	font-size: 0.9rem;
