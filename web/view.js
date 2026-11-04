@@ -737,6 +737,8 @@ document.addEventListener('keydown', e => {
 		held.add(e.key);
 	} else if (shortcuts.has(e.key)) {
 		shortcuts.get(e.key).click();
+	} else if (e.key === 'c') {
+		toStart();
 	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
 		e.preventDefault();
 		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));
