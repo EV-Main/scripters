@@ -28,7 +28,7 @@ let sel = JSON.parse(sessionStorage.getItem(KEY)) ?? {
 	path: [],
 	calling: false,
 };
-sel.layout ??= document.documentElement.dataset.layout ?? setting('layout') ?? 'bfs'; // `--layout` outranks the md's mark; absent from a selection stored before layouts
+sel.layout ??= document.documentElement.dataset.layout ?? setting('layout') ?? 'dfs'; // `--layout` outranks the md's mark; absent from a selection stored before layouts
 let saved = md; // what the file on disk holds
 let undos = []; // earlier mds, latest last; in memory only
 let redos = [];

@@ -226,7 +226,7 @@ fn md_save_ends_the_preamble_with_a_rule() {
 fn md_save_marks_the_selection() {
 	let md = "# A\n<div k=\"v\">\n</div>\n<div k=\"w\">\n</div>\n";
 	let choose = |v: &str| format!("const s = document.querySelector('#bar select'); s.value = '{v}'; s.dispatchEvent(new Event('change'));");
-	let layout = "[layout=\"bfs\"]: #\n";
+	let layout = "[layout=\"dfs\"]: #\n";
 	check_save(&[], md, "", &format!("{layout}\n---\n\n{md}"));
 	check_save(&[], md, &choose("w"), &format!("[k=w]: #\n{layout}\n---\n\n{md}"));
 	check_save(&[], &format!("[k=v]: #\n\n---\n\n{md}"), &choose("w"), &format!("[k=w]: #\n{layout}\n---\n\n{md}"));
@@ -243,24 +243,24 @@ fn md_save_marks_the_selection() {
 
 #[test]
 fn md_save_marks_the_layout_from_the_flag_or_the_bar() {
-	let dfs = "[layout=\"dfs\"]: #\n\n---\n\n# A\n";
-	check_save(&["-l", "dfs"], "# A\n", "", dfs);
-	check_save(&["--layout", "dfs"], "[layout=\"bfs\"]: #\n\n---\n\n# A\n", "", dfs);
-	let pick = "const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'layout').querySelector('select'); s.value = 'dfs'; s.dispatchEvent(new Event('change'));";
-	check_save(&[], "# A\n", pick, dfs);
+	let bfs = "[layout=\"bfs\"]: #\n\n---\n\n# A\n";
+	check_save(&["-l", "bfs"], "# A\n", "", bfs);
+	check_save(&["--layout", "bfs"], "[layout=\"dfs\"]: #\n\n---\n\n# A\n", "", bfs);
+	let pick = "const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'layout').querySelector('select'); s.value = 'bfs'; s.dispatchEvent(new Event('change'));";
+	check_save(&[], "# A\n", pick, bfs);
 }
 
 #[test]
 fn following_a_variant_response_chooses_its_variant() {
 	let md = "# A\n<div k=\"v\">\n- [x](#b)\n</div>\n<div k=\"w\">\n- [y](#b)\n</div>\n# B\n";
 	let follow = "[...document.querySelectorAll('#canvas button.label')].find(b => b.textContent === 'k=wy').click();";
-	check_save(&[], md, follow, &format!("[k=w]: #\n[layout=\"bfs\"]: #\n\n---\n\n{md}"));
+	check_save(&[], md, follow, &format!("[k=w]: #\n[layout=\"dfs\"]: #\n\n---\n\n{md}"));
 }
 
 #[test]
 fn new_card_opens_its_editor() {
 	let press = |key: &str| format!("document.body.dispatchEvent(new KeyboardEvent('keydown', {{ key: '{key}', bubbles: true }}));");
-	let layout = "[layout=\"bfs\"]: #\n\n---\n\n";
+	let layout = "[layout=\"dfs\"]: #\n\n---\n\n";
 	let write = "const ta = document.querySelector('#canvas textarea'); ta.value = '# B\\nHi'; ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));";
 	check_save(&[], "# A\n", &format!("{}{write}", press("N")), &format!("{layout}# A\n\n# B\nHi\n"));
 	check_save(
@@ -315,7 +315,7 @@ fn watch_page_edits_merge_with_the_md_saved_elsewhere() {
 		"press('N'); const ta = document.querySelector('#canvas textarea'); ta.value = '# B\\nHi'; ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));";
 	let save_elsewhere = |md: &str| format!("await fetch('/', {{ method: 'PUT', headers: {{ 'If-Match': live }}, body: '{md}' }}); await sleep(1000);");
 	let save = "press('s', { ctrlKey: true }); await sleep(1000);";
-	let layout = "[layout=\"bfs\"]: #\n\n---\n\n";
+	let layout = "[layout=\"dfs\"]: #\n\n---\n\n";
 	check_watch(
 		"# A\n",
 		&format!("{add_card}{}{save}", save_elsewhere("# A\\nedited elsewhere\\n")),

@@ -44,7 +44,7 @@ struct Page {
 	/// which way conversation steps advance
 	#[arg(short, long, global = true, value_enum, default_value_t = Direction::Vertical)]
 	direction: Direction,
-	/// which response of each loop points back up: bfs ranks a card below its earliest caller, dfs below its latest. Outranks the md's `[layout="…"]: #`; bfs if neither is given
+	/// which response of each loop points back up: bfs ranks a card below its earliest caller, dfs below its latest. Outranks the md's `[layout="…"]: #`; dfs if neither is given
 	#[arg(short, long, global = true, value_enum)]
 	layout: Option<Layout>,
 }
