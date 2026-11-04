@@ -56,8 +56,8 @@ manual_is_multiple_of = "allow"
 non_kebab_case_bins = "allow"
 
 [lints.rust]
+stable_features = "allow"
 unused_features = "allow"
-stable_features = "allow" # newer toolchains stabilize what the pinned one still gates
 
 [profile.dev.package.scripters]
 debug = true # global default is line-tables-only
