@@ -6,25 +6,32 @@ use std::{
 	time::{Duration, Instant},
 };
 
+use v_fixtures::{Fixture, FixtureFile};
+
 fn build(test: &str, flags: &[&str], md: &str) -> Result<String, String> {
-	let dir = std::env::temp_dir().join(format!("scripters_{test}_{}_{:?}", std::process::id(), std::thread::current().id()));
-	std::fs::create_dir_all(&dir).unwrap();
-	let src = dir.join("script.md");
-	std::fs::write(&src, md).unwrap();
+	let temp = single_file("script.md", md).write_to_tempdir_with_prefix(&format!("scripters_{test}_"));
 	let out = Command::new(env!("CARGO_BIN_EXE_scripters"))
 		.args(["build", "--direction", "horizontal"])
 		.args(flags)
-		.arg(&src)
+		.arg(temp.path("script.md"))
 		.arg("-o")
-		.arg(dir.join("script.html"))
+		.arg(temp.path("script.html"))
 		.output()
 		.unwrap();
-	let result = match out.status.success() {
-		true => Ok(std::fs::read_to_string(dir.join("script.html")).unwrap()),
+	match out.status.success() {
+		true => Ok(temp.read("script.html")),
 		false => Err(String::from_utf8(out.stderr).unwrap()),
-	};
-	std::fs::remove_dir_all(&dir).unwrap();
-	result
+	}
+}
+
+/// `parse` dedents, which would alter the markdown
+fn single_file(path: &str, text: &str) -> Fixture {
+	Fixture {
+		files: vec![FixtureFile {
+			path: format!("/{path}"),
+			text: text.to_owned(),
+		}],
+	}
 }
 
 // r[verify page.standalone]
@@ -57,7 +64,7 @@ fn request(addr: &str, host: &str, method: &str, path: &str, if_match: Option<&s
 	let if_match = if_match.map(|v| format!("If-Match: {v}\r\n")).unwrap_or_default();
 	write!(
 		stream,
-		"{method} {path} HTTP/1.1\r\nHost: {host}\r\n{if_match}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
+		"{method} {path} HTTP/1.0\r\nHost: {host}\r\n{if_match}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
 		body.len()
 	)
 	.unwrap();
@@ -69,20 +76,19 @@ fn request(addr: &str, host: &str, method: &str, path: &str, if_match: Option<&s
 
 #[test]
 fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
-	let dir = std::env::temp_dir().join(format!("scripters_watch_{}", std::process::id()));
-	std::fs::create_dir_all(&dir).unwrap();
-	let xdg_open = dir.join("xdg-open");
-	std::fs::write(&xdg_open, format!("#!/bin/sh\necho \"$1\" > {}/url\n", dir.display())).unwrap();
+	let temp = single_file("script.md", "# One\n").write_to_tempdir_with_prefix("scripters_watch_");
+	let dir = temp.root.clone();
+	let xdg_open = temp.path("xdg-open");
+	temp.write("xdg-open", &format!("#!/bin/sh\necho \"$1\" > {}/url\n", dir.display()));
 	std::fs::set_permissions(&xdg_open, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
-	let md = dir.join("script.md");
-	std::fs::write(&md, "# One\n").unwrap();
+	let md = temp.path("script.md");
 	let path = format!("{}:{}", dir.display(), std::env::var("PATH").unwrap());
 	let mut child = Command::new(env!("CARGO_BIN_EXE_scripters")).arg("watch").arg(&md).env("PATH", path).spawn().unwrap();
 
 	let started = Instant::now();
 	//LOOP: bounded by the 10s assert
 	let url = loop {
-		if let Ok(url) = std::fs::read_to_string(dir.join("url"))
+		if let Some(url) = temp.try_read("url")
 			&& url.ends_with('\n')
 		{
 			break url;
@@ -120,15 +126,13 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 
 	child.kill().unwrap();
 	child.wait().unwrap();
-	std::fs::remove_dir_all(&dir).unwrap();
 }
 
 /// The page built from `md` with `flags` runs `drive`, then its Export ▾ .md must download `expected`
 #[track_caller]
 fn check_save(flags: &[&str], md: &str, drive: &str, expected: &str) {
 	let html = build("save", flags, md).unwrap();
-	let dir = std::env::temp_dir().join(format!("scripters_save_page_{}_{:?}", std::process::id(), std::thread::current().id()));
-	std::fs::create_dir_all(&dir).unwrap();
+	let temp = Fixture::default().write_to_tempdir_with_prefix("scripters_save_page_");
 	// the downloaded text lands in a <script> block, which the dumped DOM holds verbatim
 	let capture = r#"<script>
 const out = Object.assign(document.createElement('script'), { type: 'text/plain', id: 'saved' });
@@ -142,19 +146,18 @@ button('.md').click();
 </script>
 </body>"#
 		.replace("@DRIVE@", drive);
-	let page = dir.join("script.html");
-	std::fs::write(&page, html.replacen("</body>", &capture, 1)).unwrap();
+	temp.write("script.html", &html.replacen("</body>", &capture, 1));
+	let page = temp.path("script.html");
 	let browser = ["chromium", "chromium-browser", "google-chrome"]
 		.into_iter()
 		.find(|b| Command::new(b).arg("--version").output().is_ok_and(|o| o.status.success()))
 		.expect("a chromium on PATH");
 	let out = Command::new(browser)
 		.args(["--headless", "--disable-gpu", "--no-first-run", "--no-sandbox", "--dump-dom"])
-		.arg(format!("--user-data-dir={}", dir.join("profile").display()))
+		.arg(format!("--user-data-dir={}", temp.path("profile").display()))
 		.arg(format!("file://{}", page.display()))
 		.output()
 		.unwrap();
-	std::fs::remove_dir_all(&dir).unwrap();
 	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
 	let dom = String::from_utf8(out.stdout).unwrap();
 	let (_, rest) = dom
