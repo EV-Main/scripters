@@ -1,11 +1,11 @@
 cargo-features = ["codegen-backend"]
 [package]
-name = "call_scripters"
+name = "scripters"
 version = "0.2.3"
 edition = "2024"
 description = "Call scripts as markdown, followed as a clickable conversation graph in one offline html file"
 license = "BlueOak-1.0.0"
-repository = "https://github.com/ev-main/call_scripters"
+repository = "https://github.com/ev-main/scripters"
 include = [
     "src/main.rs",
     "LICENSE",
@@ -54,5 +54,5 @@ non_kebab_case_bins = "allow"
 [lints.rust]
 unused_features = "allow"
 
-[profile.dev.package.call_scripters]
+[profile.dev.package.scripters]
 debug = true # global default is line-tables-only

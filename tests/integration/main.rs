@@ -7,11 +7,11 @@ use std::{
 };
 
 fn build(test: &str, md: &str) -> Result<String, String> {
-	let dir = std::env::temp_dir().join(format!("call_scripters_{test}_{}", std::process::id()));
+	let dir = std::env::temp_dir().join(format!("scripters_{test}_{}", std::process::id()));
 	std::fs::create_dir_all(&dir).unwrap();
 	let src = dir.join("script.md");
 	std::fs::write(&src, md).unwrap();
-	let out = Command::new(env!("CARGO_BIN_EXE_call_scripters"))
+	let out = Command::new(env!("CARGO_BIN_EXE_scripters"))
 		.args(["build", "--direction", "horizontal"])
 		.arg(&src)
 		.arg("-o")
@@ -67,7 +67,7 @@ fn request(addr: &str, host: &str, method: &str, path: &str, if_match: Option<&s
 
 #[test]
 fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
-	let dir = std::env::temp_dir().join(format!("call_scripters_watch_{}", std::process::id()));
+	let dir = std::env::temp_dir().join(format!("scripters_watch_{}", std::process::id()));
 	std::fs::create_dir_all(&dir).unwrap();
 	let xdg_open = dir.join("xdg-open");
 	std::fs::write(&xdg_open, format!("#!/bin/sh\necho \"$1\" > {}/url\n", dir.display())).unwrap();
@@ -75,7 +75,7 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 	let md = dir.join("script.md");
 	std::fs::write(&md, "# One\n").unwrap();
 	let path = format!("{}:{}", dir.display(), std::env::var("PATH").unwrap());
-	let mut child = Command::new(env!("CARGO_BIN_EXE_call_scripters")).arg("watch").arg(&md).env("PATH", path).spawn().unwrap();
+	let mut child = Command::new(env!("CARGO_BIN_EXE_scripters")).arg("watch").arg(&md).env("PATH", path).spawn().unwrap();
 
 	let started = Instant::now();
 	//LOOP: bounded by the 10s assert
@@ -125,7 +125,7 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 #[track_caller]
 fn check_save(md: &str, drive: &str, expected: &str) {
 	let html = build("save", md).unwrap();
-	let dir = std::env::temp_dir().join(format!("call_scripters_save_page_{}_{:?}", std::process::id(), std::thread::current().id()));
+	let dir = std::env::temp_dir().join(format!("scripters_save_page_{}_{:?}", std::process::id(), std::thread::current().id()));
 	std::fs::create_dir_all(&dir).unwrap();
 	// the downloaded text lands in a <script> block, which the dumped DOM holds verbatim
 	let capture = r#"<script>

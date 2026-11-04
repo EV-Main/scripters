@@ -95,15 +95,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "call_scripters"
-version = "0.2.3"
-dependencies = [
- "clap",
- "color-eyre",
- "tiny_http",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -318,6 +309,15 @@ name = "rustc-demangle"
 version = "0.1.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b74b56ffa8bb2830709a538c2cbcae9aa062db0d2a42563bfb09bdaae44020eb"
+
+[[package]]
+name = "scripters"
+version = "0.2.3"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "tiny_http",
+]
 
 [[package]]
 name = "sharded-slab"

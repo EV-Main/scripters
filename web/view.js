@@ -1,11 +1,11 @@
-const KEY = `call_scripters:${document.title}`;
+const KEY = `scripters:${document.title}`;
 const RANKDIR = document.documentElement.dataset.rankdir;
 if (!['LR', 'TB'].includes(RANKDIR)) throw new Error(`bundler wrote an unknown rankdir: ${RANKDIR}`);
 const DOUBLE_CLICK_MS = 400;
 const SCRIPT_TAG = /<\/?script/i; // would end or nest the embedding <script> block
-const SPACING_KEY = 'call_scripters:spacing'; // shared across scripts: a viewing preference, not part of a call
-const THEME_KEY = 'call_scripters:theme';
-const ZOOM_KEY = 'call_scripters:zoom';
+const SPACING_KEY = 'scripters:spacing'; // shared across scripts: a viewing preference, not part of a call
+const THEME_KEY = 'scripters:theme';
+const ZOOM_KEY = 'scripters:zoom';
 const ZOOM_STEP = 1.2;
 const [MIN_ZOOM, MAX_ZOOM] = [0.2, 3];
 const LABEL_NAME = /^[\w-]+$/;
@@ -708,7 +708,7 @@ function wrote(text) {
 
 function handles(mode, op) {
 	return new Promise((resolve, reject) => {
-		const open = indexedDB.open('call_scripters', 1);
+		const open = indexedDB.open('scripters', 1);
 		open.onupgradeneeded = () => open.result.createObjectStore('handles');
 		open.onerror = () => reject(open.error);
 		open.onsuccess = () => {

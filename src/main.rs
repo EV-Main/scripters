@@ -23,7 +23,7 @@ enum Command {
 	Build {
 		#[command(flatten)]
 		script: Script,
-		/// defaults to `<tmp>/call_scripters/<md stem>.html`
+		/// defaults to `<tmp>/scripters/<md stem>.html`
 		#[arg(short)]
 		o: Option<PathBuf>,
 		/// open the result with `xdg-open`
@@ -63,7 +63,7 @@ fn main() -> Result<()> {
 			let out = match o {
 				Some(o) => o,
 				None => {
-					let dir = std::env::temp_dir().join("call_scripters");
+					let dir = std::env::temp_dir().join("scripters");
 					std::fs::create_dir_all(&dir).wrap_err_with(|| format!("creating {}", dir.display()))?;
 					dir.join(format!("{title}.html"))
 				}
