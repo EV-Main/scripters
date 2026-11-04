@@ -10,21 +10,20 @@ Hi, this is **Sam** from Brightline. Did I catch you at an okay time?
 - [Has a minute](#opening)
 - [Busy right now](#schedule-callback)
 - [Who is this?](#who-is-this)
-
 </div>
 <div lang="ru">
 
-# Вступление
+## Вступление
 Здравствуйте, это **Сэм** из Brightline. Удобно сейчас говорить?
 
 - [Есть минута](#opening)
 - [Сейчас занят](#schedule-callback)
 - [Кто это?](#who-is-this)
-
 </div>
+
 <div lang="fr">
 
-# Présentation
+## Présentation
 Bonjour, ici **Sam** de Brightline. Je vous appelle à un bon moment ?
 
 - [A une minute](#opening)
@@ -34,7 +33,7 @@ Bonjour, ici **Sam** de Brightline. Je vous appelle à un bon moment ?
 </div>
 <div lang="de">
 
-# Einleitung
+## Einleitung
 Hallo, hier ist **Sam** von Brightline. Passt es Ihnen gerade?
 
 - [Hat kurz Zeit](#opening)
