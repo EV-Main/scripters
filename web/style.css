@@ -169,7 +169,7 @@ input {
 	inset: 0 auto auto 0;
 	pointer-events: none;
 }
-#canvas path {
+#canvas > svg > path { /* not `#canvas path`: that also hits the arrow marker's path and kills its context-stroke fill */
 	fill: none;
 	stroke: oklch(from var(--edge) l 0.05 var(--hue));
 	stroke-width: 1.5;
