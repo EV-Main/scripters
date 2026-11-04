@@ -83,7 +83,7 @@ function render() {
 	const current = sel.path.at(-1);
 	const walked = new Set(sel.path.slice(1).map((id, i) => `${sel.path[i]}\n${id}`));
 	const exits = new Set(edges.map(e => e.from));
-	const hue = e => (graph.edges.indexOf(e) * 110) % 360; // 36 hues before repeating, 110° apart so consecutive edges differ
+	const hue = e => (graph.nodes.findIndex(n => n.id === e.to) * 110) % 360; // by target node: 36 hues before repeating, 110° apart so consecutive nodes differ
 
 	for (const n of nodes) {
 		const card = el('article', 'card');
