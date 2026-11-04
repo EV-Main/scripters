@@ -1,6 +1,6 @@
 [objection]: <oklch(0.6 0.15 300)> "They push back"
-[win]: <oklch(0.62 0.17 150)> "The call ends well"
-[loss]: <oklch(0.62 0.19 25)> "The call ends badly"
+[win]: <oklch(0.62 0.17 150)> "Objective reached"
+[loss]: <oklch(0.62 0.19 25)> "Objective not reached"
 [rework]: <oklch(0.86 0.09 85)> "Wording needs another pass"
 [lang="en"]: #
 
