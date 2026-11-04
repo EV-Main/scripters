@@ -1,4 +1,4 @@
-# call_scripters
+# call_scripters <img src="web/icon.svg" alt="" width="64">
 ![Minimum Supported Rust Version](https://img.shields.io/badge/nightly-1.100+-ab6000.svg)
 [<img alt="crates.io" src="https://img.shields.io/crates/v/call_scripters.svg?color=fc8d62&logo=rust" height="20" style=flat-square>](https://crates.io/crates/call_scripters)
 [<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs&style=flat-square" height="20">](https://docs.rs/call_scripters)

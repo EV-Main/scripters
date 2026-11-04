@@ -103,6 +103,17 @@ input {
 #bar .push {
 	margin-left: auto;
 }
+#bar .repo {
+	display: flex;
+	color: var(--muted);
+}
+#bar .repo:hover {
+	color: var(--ink);
+}
+#bar .repo svg {
+	width: 1.2rem;
+	height: 1.2rem;
+}
 
 .menu {
 	position: relative;

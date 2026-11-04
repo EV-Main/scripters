@@ -185,6 +185,7 @@ fn bundle(title: &str, direction: Direction, md: &str, live: Option<&str>) -> Re
 	let parts = [
 		("@TITLE@", title.as_str()),
 		("@ICON@", icon.as_str()),
+		("@REPO@", env!("CARGO_PKG_REPOSITORY")),
 		("@LIVE@", live.as_str()),
 		(
 			"@RANKDIR@",
