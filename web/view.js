@@ -21,12 +21,14 @@ const canvas = document.getElementById('canvas');
 
 let md = document.getElementById('src').textContent;
 let graph = parse(md);
+const setting = name => graph.marks.find(m => m.setting === name)?.value;
 let sel = JSON.parse(sessionStorage.getItem(KEY)) ?? {
 	variants: Object.fromEntries(graph.marks.filter(m => m.dim !== null).map(m => [m.dim, m.value])),
-	lang: graph.marks.find(m => m.dim === null)?.value,
+	lang: setting('lang'),
 	path: [],
 	calling: false,
 };
+sel.layout ??= document.documentElement.dataset.layout ?? setting('layout') ?? 'dfs'; // `--bfs` outranks the md's mark; absent from a selection stored before layouts
 let saved = md; // what the file on disk holds
 let undos = []; // earlier mds, latest last; in memory only
 let redos = [];
@@ -161,28 +163,26 @@ function render() {
 		return label;
 	});
 
-	const g = new dagre.graphlib.Graph({ multigraph: true });
-	g.setGraph({ rankdir: RANKDIR, nodesep: 36 * spacing, ranksep: 60 * spacing, edgesep: 16 * spacing, marginx: 48, marginy: 48 });
-	for (const n of nodes) g.setNode(n.id, { width: cards.get(n.id).offsetWidth, height: cards.get(n.id).offsetHeight });
-	edges.forEach((e, i) => {
-		const [width, height] = labels[i] ? [labels[i].offsetWidth, labels[i].offsetHeight] : [0, 0];
-		g.setEdge(e.from, e.to, { width, height, labelpos: 'c' }, String(i));
-	});
-	dagre.layout(g);
-	place(g);
+	const laid = layout(
+		sel.layout,
+		RANKDIR,
+		spacing,
+		nodes.map(n => ({ id: n.id, width: cards.get(n.id).offsetWidth, height: cards.get(n.id).offsetHeight })),
+		edges.map((e, i) => ({ from: e.from, to: e.to, width: labels[i]?.offsetWidth ?? 0, height: labels[i]?.offsetHeight ?? 0 })),
+	);
 	const [cross, crossSize] = RANKDIR === 'TB' ? ['x', 'width'] : ['y', 'height'];
 
 	for (const n of nodes) {
-		const { x, y, width, height } = g.node(n.id);
+		const { x, y, width, height } = laid.nodes.get(n.id);
 		Object.assign(cards.get(n.id).style, { left: `${x - width / 2}px`, top: `${y - height / 2}px` });
 	}
-	const { width, height } = g.graph();
+	const { width, height } = laid;
 	const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 	svg.setAttribute('width', width);
 	svg.setAttribute('height', height);
 	svg.innerHTML = '<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker></defs>';
 	edges.forEach((e, i) => {
-		const { points, x, y } = g.edge(e.from, e.to, String(i));
+		const { points, x, y } = laid.routes[i];
 		const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 		let d = `M${points[0].x},${points[0].y}`;
 		for (let j = 1; j < points.length - 1; j++) {
@@ -199,11 +199,11 @@ function render() {
 	});
 	canvas.prepend(svg);
 	Object.assign(canvas.style, { width: `${width}px`, height: `${height}px` });
-	const top = Math.min(...nodes.map(n => g.node(n.id).rank));
-	const first = nodes.map(n => g.node(n.id)).filter(p => p.rank === top);
+	const top = Math.min(...[...laid.nodes.values()].map(p => p.rank));
+	const first = [...laid.nodes.values()].filter(p => p.rank === top);
 	const mid = (Math.min(...first.map(p => p[cross] - p[crossSize] / 2)) + Math.max(...first.map(p => p[cross] + p[crossSize] / 2))) / 2;
 	canvas.style.setProperty('--head-left', `${mid}px`);
-	canvas.style.setProperty('--head-right', `${g.graph()[crossSize] - mid}px`);
+	canvas.style.setProperty('--head-right', `${laid[crossSize] - mid}px`);
 	scrollTo(...at);
 }
 
@@ -239,6 +239,16 @@ function renderBar() {
 		label.append(select);
 		bar.append(label);
 	}
+	const layoutSelect = el('select');
+	for (const l of LAYOUTS) layoutSelect.append(new Option(l, l, false, sel.layout === l));
+	layoutSelect.addEventListener('change', () => {
+		sel.layout = layoutSelect.value;
+		render();
+	});
+	const layoutLabel = el('label', 'dim', 'layout ');
+	layoutLabel.title = 'which response of a loop points back up: dfs ranks a card below its latest caller, bfs below its earliest';
+	layoutLabel.append(layoutSelect);
+	bar.append(layoutLabel);
 	const range = el('input');
 	Object.assign(range, { type: 'range', min: 0.1, max: 3, step: 0.1, value: spacing });
 	range.addEventListener('change', () => { // not `input`: render() rebuilds the bar, which would drop the slider mid-drag
@@ -639,15 +649,16 @@ function download(name, text, type) {
 // the md as saved: its selection marks follow the selection, and a `---` ends a nonempty preamble
 function stamped() {
 	if (graph.errors.length) return md; // nothing to stamp against; the broken md saves as it is
-	const want = new Map([...Object.keys(graph.dims).filter(k => k in sel.variants).map(k => [k, sel.variants[k]]), ...(sel.lang ? [[null, sel.lang]] : [])]);
-	const line = (dim, value) => (dim === null ? `[lang="${value}"]: #\n` : `[${dim}=${value}]: #\n`);
+	const key = m => m.dim ?? `"${m.setting}"`; // a dim is `[\w-]+`, so never quoted
+	const want = new Map([...Object.keys(graph.dims).filter(k => k in sel.variants).map(k => [k, sel.variants[k]]), ...(sel.lang ? [['"lang"', sel.lang]] : []), ['"layout"', sel.layout]]);
+	const line = (k, value) => (k.startsWith('"') ? `[${k.slice(1, -1)}="${value}"]: #\n` : `[${k}=${value}]: #\n`);
 	const edits = graph.marks.flatMap(m => {
-		const value = want.get(m.dim);
-		want.delete(m.dim);
-		return value === m.value ? [] : [{ start: m.start, end: m.end, text: value === undefined ? '' : line(m.dim, value) }];
+		const value = want.get(key(m));
+		want.delete(key(m));
+		return value === m.value ? [] : [{ start: m.start, end: m.end, text: value === undefined ? '' : line(key(m), value) }];
 	});
 	const at = graph.marks.at(-1)?.end ?? graph.labels.at(-1)?.end ?? 0;
-	edits.push({ start: at, end: at, text: [...want].map(([d, v]) => line(d, v)).join('') });
+	edits.push({ start: at, end: at, text: [...want].map(([k, v]) => line(k, v)).join('') });
 	const next = splice(edits);
 	const g = parse(next);
 	assert(!g.errors.length, `stamping broke the document: ${g.errors.map(e => e.msg).join('; ')}`);
@@ -660,6 +671,7 @@ function html(text) {
 	const doc = new DOMParser().parseFromString(pristine, 'text/html');
 	doc.getElementById('src').textContent = text;
 	delete doc.documentElement.dataset.live; // a downloaded copy is not served
+	delete doc.documentElement.dataset.layout; // `text` carries the layout's mark
 	return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
 }
 

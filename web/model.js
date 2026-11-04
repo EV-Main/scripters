@@ -1,5 +1,7 @@
 // Sole parser of the script format: docs/spec/script_format.md
 
+const LAYOUTS = ['dfs', 'bfs']; // implemented in web/layout.js
+
 function parse(md) {
 	const nodes = [];
 	const labels = [];
@@ -87,11 +89,11 @@ function parse(md) {
 				else labels.push({ name: l[1], color: l[2], description: (l[3] ?? '').replace(/\\(.)/g, '$1'), line: lineNo, start: line.start, end: line.end });
 				return;
 			}
-			const m = /^\[(?:([\w-]+)=([\w-]+)|lang="([\w-]+)")\]:[ \t]+#[ \t]*$/.exec(line.text);
+			const m = /^\[(?:([\w-]+)=([\w-]+)|(lang|layout)="([\w-]+)")\]:[ \t]+#[ \t]*$/.exec(line.text);
 			if (m && !node) {
-				const dim = m[1] ?? null;
-				if (marks.some(k => k.dim === dim)) errors.push({ line: lineNo, msg: `a second mark for \`${dim ?? 'lang'}\`` });
-				else marks.push({ dim, value: m[2] ?? m[3], line: lineNo, start: line.start, end: line.end });
+				const [dim, setting] = [m[1] ?? null, m[3] ?? null];
+				if (marks.some(k => k.dim === dim && k.setting === setting)) errors.push({ line: lineNo, msg: `a second mark for \`${dim ?? setting}\`` });
+				else marks.push({ dim, setting, value: m[2] ?? m[4], line: lineNo, start: line.start, end: line.end });
 				return;
 			}
 			if (rule && !node) return;
@@ -133,7 +135,10 @@ function parse(md) {
 		}
 	}
 
-	for (const m of marks) if (!(m.dim === null ? langs : (dims[m.dim] ?? [])).includes(m.value)) errors.push({ line: m.line, msg: `no \`<div ${m.dim ?? 'lang'}="${m.value}">\`` });
+	for (const m of marks) {
+		if (m.setting === 'layout' && !LAYOUTS.includes(m.value)) errors.push({ line: m.line, msg: `no layout \`${m.value}\`: ${LAYOUTS.map(l => `\`${l}\``).join(' or ')}` });
+		else if (m.setting !== 'layout' && !(m.dim === null ? langs : (dims[m.dim] ?? [])).includes(m.value)) errors.push({ line: m.line, msg: `no \`<div ${m.dim ?? 'lang'}="${m.value}">\`` });
+	}
 	return graph;
 }
 
@@ -185,4 +190,4 @@ function inScope(item, selection) {
 	return Object.entries(item.scope).every(([k, v]) => ((k === 'lang' ? selection.lang : selection.variants?.[k]) ?? v) === v);
 }
 
-if (typeof module !== 'undefined') module.exports = { parse, visible, inScope };
+if (typeof module !== 'undefined') module.exports = { LAYOUTS, parse, visible, inScope };

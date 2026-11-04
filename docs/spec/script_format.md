@@ -48,14 +48,19 @@ Hi, this is **Sam** from …
 - A heading inside language scopes alone is the card's title in that language. It starts no node: slot and labels come from the main heading alone. A second title for one language in a section, a `{…}` block on it, or a heading inside a variant scope is an error.
 
 ## Marks
-- A line `[dim=value]: #` or `[lang="code"]: #` outside any section marks a chosen variant value, or the chosen language: a link reference definition, so it renders as nothing elsewhere.
-- A page with no selection of its own starts from the marks.
-- A second mark for one dim (or a second language mark), or a value with no scope for it, is an error.
+- A line `[dim=value]: #`, `[lang="code"]: #` or `[layout="dfs"]: #` outside any section marks a chosen variant value, the chosen language, or the layout: a link reference definition, so it renders as nothing elsewhere.
+- A page with no selection of its own starts from the marks; `build --bfs` and `watch --bfs` outrank the layout mark.
+- A second mark for one dim (or a second language or layout mark), a value with no scope for it, or a layout other than `dfs` and `bfs`, is an error.
 
 ## Saving
 Ctrl+S and Export ▾ .html / .md write the md as it is, except:
-- Marks follow the current selection, one per chosen dim and one for the language: a changed one is rewritten in place, one for a dim no longer chosen is dropped, new ones go after the last mark, or after the labels if there is none.
+- Marks follow the current selection, one per chosen dim, one for the language and one for the layout: a changed one is rewritten in place, one for a dim no longer chosen is dropped, new ones go after the last mark, or after the labels if there is none.
 - If anything precedes the first heading, a `---` line follows it, unless the last such line already is one.
+
+## Layout
+Every response leads one rank or more down, except one in each loop, which points back up. The layout picks it:
+- `dfs` (the default): dagre's depth-first cycle breaking; a card ranks below the latest card leading to it.
+- `bfs`: cards are ordered as a call first reaches them, breadth-first from the root, then from each stray; a response into an earlier card points back, so a card ranks below the earliest card leading to it.
 
 ## Editing
 - An edit whose result has errors is refused.
@@ -65,7 +70,7 @@ Ctrl+S and Export ▾ .html / .md write the md as it is, except:
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside any scope, or at the end of its section if it has none.
 
 ## Selection
-`{ variants: {dim → value}, lang, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
+`{ variants: {dim → value}, lang, layout, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
 
 - A node is **visible** iff it agrees with the selection and is reachable from the root or a stray along responses and nodes that agree with it.
 - Cards show only the lines that agree with the selection. Lines and responses of a dimension with no value chosen show framed with their variant. Unlike variants, a language is always chosen while the document has any.

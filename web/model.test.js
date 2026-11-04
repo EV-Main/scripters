@@ -9,7 +9,7 @@ const scoped = (scope, text) => (Object.keys(scope).length ? `{${Object.entries(
 function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
-		...graph.marks.map(m => `mark ${m.dim ?? 'language'}=${m.value}`),
+		...graph.marks.map(m => (m.dim ? `mark ${m.dim}=${m.value}` : `mark ${m.setting}="${m.value}"`)),
 		...graph.nodes.map(n => scoped(n.scope, `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`)),
 		...graph.edges.map(e => scoped(e.scope, `edge ${e.from} -[${e.label}]-> ${e.to}`)),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
@@ -224,6 +224,7 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 		[l]: <oklch(0 0 0)>
 		[k=v]: #
 		[lang="ru"]: #
+		[layout="bfs"]: #
 
 		---
 
@@ -243,7 +244,8 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 		`
 		label l oklch(0 0 0) ""
 		mark k=v
-		mark language=ru
+		mark lang="ru"
+		mark layout="bfs"
 		node a "A" body="{lang=ru}a"
 		node b "B" body=""
 		edge a -[x]-> b
@@ -257,6 +259,9 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 		[k=v]: #
 		[j=v]: #
 		[lang="en"]: #
+		[layout="dfs"]: #
+		[layout="bfs"]: #
+		[layout="flat"]: #
 		# A
 		<div k="v">
 		</div>
@@ -264,15 +269,22 @@ test('selection marks and a `---` rule may precede the first heading', () => {
 		`
 		mark k=x
 		mark j=v
-		mark language=en
+		mark lang="en"
+		mark layout="dfs"
 		node a "A" body=""
 		dim k: v
 		error L2: a second mark for \`k\`
+		error L6: a second mark for \`layout\`
+		error L7: a second mark for \`layout\`
 		error L1: no \`<div k="x">\`
 		error L3: no \`<div j="v">\`
 		error L4: no \`<div lang="en">\`
 		`,
 	);
+});
+
+test('a layout mark names `dfs` or `bfs`', () => {
+	checkParse('[layout="flat"]: #\n# A\n', 'mark layout="flat"\nnode a "A" body=""\nerror L1: no layout `flat`: `dfs` or `bfs`');
 });
 
 test('cards the first card cannot reach are warned of, and still shown', () => {

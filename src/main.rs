@@ -43,6 +43,9 @@ struct Script {
 	/// which way conversation steps advance
 	#[arg(short, long, value_enum, default_value_t = Direction::Vertical)]
 	direction: Direction,
+	/// rank each card below its earliest caller instead of its latest; outranks the md's `[layout="…"]: #`
+	#[arg(long)]
+	bfs: bool,
 }
 
 impl Script {
@@ -69,7 +72,7 @@ fn main() -> Result<()> {
 					dir.join(format!("{title}.html"))
 				}
 			};
-			std::fs::write(&out, bundle(&title, script.direction, &script.read()?, None)?).wrap_err_with(|| format!("writing {}", out.display()))?;
+			std::fs::write(&out, bundle(&title, &script, &script.read()?, None)?).wrap_err_with(|| format!("writing {}", out.display()))?;
 			if open {
 				xdg_open(out.as_os_str())?;
 			}
@@ -94,7 +97,7 @@ fn watch(script: &Script) -> Result<()> {
 	let version = |src: &str| format!("{:x}", hasher.hash_one(src));
 	let build = |src: &str| -> Result<(String, String)> {
 		let v = version(src);
-		let html = bundle(&title, script.direction, src, Some(&v))?;
+		let html = bundle(&title, script, src, Some(&v))?;
 		Ok((v, html))
 	};
 	let mut served = build(&script.read()?)?;
@@ -199,22 +202,24 @@ enum Direction {
 }
 
 /// `live`: the md version a `watch` page was built from
-fn bundle(title: &str, direction: Direction, md: &str, live: Option<&str>) -> Result<String> {
+fn bundle(title: &str, script: &Script, md: &str, live: Option<&str>) -> Result<String> {
 	let lower = md.to_ascii_lowercase();
 	if lower.contains("<script") || lower.contains("</script") {
 		bail!("markdown contains a <script> tag; it would break out of the embedding <script> block");
 	}
 	let title = title.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
 	let live = live.map(|v| format!(" data-live=\"{v}\"")).unwrap_or_default();
+	let layout = if script.bfs { " data-layout=\"bfs\"" } else { "" };
 	let icon = include_str!("../web/icon.svg").replace('"', "'").replace('#', "%23"); // data: url, inside a "-quoted href
 	let parts = [
 		("@TITLE@", title.as_str()),
 		("@ICON@", icon.as_str()),
 		("@REPO@", env!("CARGO_PKG_REPOSITORY")),
 		("@LIVE@", live.as_str()),
+		("@LAYOUT@", layout),
 		(
 			"@RANKDIR@",
-			match direction {
+			match script.direction {
 				Direction::Horizontal => "LR",
 				Direction::Vertical => "TB",
 			},
@@ -225,6 +230,7 @@ fn bundle(title: &str, direction: Direction, md: &str, live: Option<&str>) -> Re
 		("/*@DAGRE@*/", include_str!("../web/vendor/dagre.min.js")),
 		("/*@MODEL@*/", include_str!("../web/model.js")),
 		("/*@PLACE@*/", include_str!("../web/place.js")),
+		("/*@LAYOUT_JS@*/", include_str!("../web/layout.js")),
 		("/*@VIEW@*/", include_str!("../web/view.js")),
 	];
 	let template = include_str!("../web/template.html");

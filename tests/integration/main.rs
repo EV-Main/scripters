@@ -6,13 +6,14 @@ use std::{
 	time::{Duration, Instant},
 };
 
-fn build(test: &str, md: &str) -> Result<String, String> {
+fn build(test: &str, flags: &[&str], md: &str) -> Result<String, String> {
 	let dir = std::env::temp_dir().join(format!("scripters_{test}_{}", std::process::id()));
 	std::fs::create_dir_all(&dir).unwrap();
 	let src = dir.join("script.md");
 	std::fs::write(&src, md).unwrap();
 	let out = Command::new(env!("CARGO_BIN_EXE_scripters"))
 		.args(["build", "--direction", "horizontal"])
+		.args(flags)
 		.arg(&src)
 		.arg("-o")
 		.arg(dir.join("script.html"))
@@ -29,7 +30,7 @@ fn build(test: &str, md: &str) -> Result<String, String> {
 #[test]
 fn demo_is_self_contained() {
 	let md = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.call.md")).unwrap();
-	let html = build("demo", &md).unwrap();
+	let html = build("demo", &[], &md).unwrap();
 	assert!(html.contains(&md), "markdown is embedded verbatim");
 	for attr in ["src=", "href="] {
 		for quote in ["\"", "'", ""] {
@@ -44,7 +45,7 @@ fn demo_is_self_contained() {
 #[test]
 fn script_tag_in_markdown_is_rejected() {
 	for md in ["# A\n</script>\n", "# A\n<SCRIPT>alert(1)</SCRIPT>\n"] {
-		let err = build("script_tag", md).unwrap_err();
+		let err = build("script_tag", &[], md).unwrap_err();
 		assert!(err.contains("<script>"), "{err}");
 	}
 }
@@ -121,10 +122,10 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 	std::fs::remove_dir_all(&dir).unwrap();
 }
 
-/// The page built from `md` runs `drive`, then its Export ▾ .md must download `expected`
+/// The page built from `md` with `flags` runs `drive`, then its Export ▾ .md must download `expected`
 #[track_caller]
-fn check_save(md: &str, drive: &str, expected: &str) {
-	let html = build("save", md).unwrap();
+fn check_save(flags: &[&str], md: &str, drive: &str, expected: &str) {
+	let html = build("save", flags, md).unwrap();
 	let dir = std::env::temp_dir().join(format!("scripters_save_page_{}_{:?}", std::process::id(), std::thread::current().id()));
 	std::fs::create_dir_all(&dir).unwrap();
 	// the downloaded text lands in a <script> block, which the dumped DOM holds verbatim
@@ -164,10 +165,11 @@ button('.md').click();
 #[test]
 fn md_save_round_trips() {
 	let demo = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.call.md")).unwrap();
-	check_save(&demo, "", &demo);
+	check_save(&[], &demo, "", &demo);
 	let md = r#"[hot]: <oklch(0.62 0.19 25)> "Ready"
 [k=v]: #
 [lang="ru"]: #
+[layout="bfs"]: #
 
 ---
 
@@ -193,32 +195,46 @@ multi-line comment
 ###### Deep
 - [Back](#start)
 "#;
-	check_save(md, "", md);
-	check_save("# A\n", "", "# A\n");
+	check_save(&[], md, "", md);
 }
 
 #[test]
 fn md_save_ends_the_preamble_with_a_rule() {
-	check_save("[l]: <oklch(0 0 0)>\n# A\n", "", "[l]: <oklch(0 0 0)>\n\n---\n\n# A\n");
-	check_save("[l]: <oklch(0 0 0)>\n---\n# A\n", "", "[l]: <oklch(0 0 0)>\n---\n# A\n");
+	check_save(&[], "[layout=\"dfs\"]: #\n# A\n", "", "[layout=\"dfs\"]: #\n\n---\n\n# A\n");
+	check_save(&[], "[layout=\"dfs\"]: #\n---\n# A\n", "", "[layout=\"dfs\"]: #\n---\n# A\n");
 }
 
 #[test]
 fn md_save_marks_the_selection() {
 	let md = "# A\n<div k=\"v\">\n</div>\n<div k=\"w\">\n</div>\n";
 	let choose = |v: &str| format!("const s = document.querySelector('#bar select'); s.value = '{v}'; s.dispatchEvent(new Event('change'));");
-	check_save(md, "", md);
-	check_save(md, &choose("w"), &format!("[k=w]: #\n\n---\n\n{md}"));
-	check_save(&format!("[k=v]: #\n\n---\n\n{md}"), &choose("w"), &format!("[k=w]: #\n\n---\n\n{md}"));
-	check_save(&format!("[k=v]: #\n\n---\n\n{md}"), &choose("all"), &format!("\n---\n\n{md}"));
+	let layout = "[layout=\"dfs\"]: #\n";
+	check_save(&[], md, "", &format!("{layout}\n---\n\n{md}"));
+	check_save(&[], md, &choose("w"), &format!("[k=w]: #\n{layout}\n---\n\n{md}"));
+	check_save(&[], &format!("[k=v]: #\n\n---\n\n{md}"), &choose("w"), &format!("[k=w]: #\n{layout}\n---\n\n{md}"));
+	check_save(&[], &format!("[k=v]: #\n\n---\n\n{md}"), &choose("all"), &format!("{layout}\n---\n\n{md}"));
 	let langs = "# A\n<div lang=\"en\">\nhi\n</div>\n<div lang=\"ru\">\nпривет\n</div>\n";
-	check_save(langs, "", &format!("[lang=\"en\"]: #\n\n---\n\n{langs}"));
-	check_save(&format!("[l]: <oklch(0 0 0)>\n{md}"), &choose("v"), &format!("[l]: <oklch(0 0 0)>\n[k=v]: #\n\n---\n\n{md}"));
+	check_save(&[], langs, "", &format!("[lang=\"en\"]: #\n{layout}\n---\n\n{langs}"));
+	check_save(
+		&[],
+		&format!("[l]: <oklch(0 0 0)>\n{md}"),
+		&choose("v"),
+		&format!("[l]: <oklch(0 0 0)>\n[k=v]: #\n{layout}\n---\n\n{md}"),
+	);
+}
+
+#[test]
+fn md_save_marks_the_layout_from_the_flag_or_the_bar() {
+	let bfs = "[layout=\"bfs\"]: #\n\n---\n\n# A\n";
+	check_save(&["--bfs"], "# A\n", "", bfs);
+	check_save(&["--bfs"], "[layout=\"dfs\"]: #\n\n---\n\n# A\n", "", bfs);
+	let pick = "const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'layout').querySelector('select'); s.value = 'bfs'; s.dispatchEvent(new Event('change'));";
+	check_save(&[], "# A\n", pick, bfs);
 }
 
 #[test]
 fn following_a_variant_response_chooses_its_variant() {
 	let md = "# A\n<div k=\"v\">\n- [x](#b)\n</div>\n<div k=\"w\">\n- [y](#b)\n</div>\n# B\n";
 	let follow = "[...document.querySelectorAll('#canvas button.label')].find(b => b.textContent === 'k=wy').click();";
-	check_save(md, follow, &format!("[k=w]: #\n\n---\n\n{md}"));
+	check_save(&[], md, follow, &format!("[k=w]: #\n[layout=\"dfs\"]: #\n\n---\n\n{md}"));
 }
