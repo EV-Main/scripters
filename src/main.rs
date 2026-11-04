@@ -1,4 +1,4 @@
-#![feature(default_field_values)]
+#![feature(default_field_values, trim_prefix_suffix)]
 use std::{
 	ffi::OsStr,
 	hash::{BuildHasher, RandomState},
@@ -47,7 +47,8 @@ struct Script {
 
 impl Script {
 	fn title(&self) -> Result<String> {
-		Ok(self.md.file_stem().ok_or_else(|| eyre!("{} has no file name", self.md.display()))?.to_string_lossy().into_owned())
+		let stem = self.md.file_stem().ok_or_else(|| eyre!("{} has no file name", self.md.display()))?.to_string_lossy();
+		Ok(stem.trim_suffix(".call").to_owned())
 	}
 
 	fn read(&self) -> Result<String> {

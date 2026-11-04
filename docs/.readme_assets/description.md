@@ -4,5 +4,5 @@ Turns a markdown sales call script into one self-contained HTML file: each `# ` 
 
 ![a call walked through the demo script](docs/.readme_assets/assets/walkthrough.webp)
 
-[`examples/demo.md`](examples/demo.md), walked: A/B variants picked in the top bar, responses clicked through to a booked call, then a card's markdown edited in place. For the real thing, [play with it](https://@@OWNER@@.github.io/scripters/).
+[`examples/demo.call.md`](examples/demo.call.md), walked: A/B variants picked in the top bar, responses clicked through to a booked call, then a card's markdown edited in place. For the real thing, [play with it](https://@@OWNER@@.github.io/scripters/).
 // redraw it yourself: `nix run .#film`.
