@@ -166,7 +166,7 @@ input {
 }
 #canvas path {
 	fill: none;
-	stroke: oklch(from var(--edge) l 0.09 var(--hue));
+	stroke: oklch(from var(--edge) l 0.05 var(--hue));
 	stroke-width: 1.5;
 }
 #canvas path.visited {
@@ -198,7 +198,10 @@ input {
 	box-shadow: 0 0 0 4px oklch(from var(--accent) l c h / 0.2), 0 4px 16px var(--shadow);
 }
 .card.terminal {
-	border-bottom-width: 6px;
+	border-bottom-width: 8px;
+}
+.card.terminal:not(.visited, .current) {
+	border-bottom-color: var(--muted);
 }
 .card.editing {
 	z-index: 5;
@@ -364,7 +367,7 @@ input {
 	text-align: center;
 	color: var(--ink);
 	background: var(--card);
-	border: 1px solid oklch(from var(--edge) l 0.09 var(--hue));
+	border: 1px solid oklch(from var(--edge) l 0.05 var(--hue));
 	border-radius: 999px;
 	cursor: pointer;
 }
