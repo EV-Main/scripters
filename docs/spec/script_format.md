@@ -18,9 +18,9 @@ Hi, this is **Sam** from …
 ```
 
 ## Nodes
-- Each ATX heading (`#` to `######`, any level) outside a code fence and a scope starts a node; levels only shape the md elsewhere. Its source span runs to the next such heading.
+- Each ATX heading (`#` to `######`, any level) outside a code fence and outside every scope but section scopes starts a node; levels only shape the md elsewhere. Its source span runs to the next such heading or section scope line.
 - A heading whose text starts with `-` (`# - Objections`, `## -Notes`) is a **noop**: it ends the current section and starts none, so it only groups sections when the md is read elsewhere. Inside a scope it is ignored.
-- Non-blank text outside any section (before the first heading, or under a noop), other than label definitions, selection marks and `---` lines, is an error.
+- Non-blank text outside any section (before the first heading, under a noop, or after a section scope closes), other than label definitions, selection marks and `---` lines, is an error.
 - A trailing `{.label .label2}` block on the heading is stripped from the title; its tokens are labels. A `k=v` token in it is an error: variants are scopes.
 - The GitHub anchor slug of the remaining title is the node's **slot**, its id. Two nodes with the same slot are an error.
 
@@ -40,6 +40,7 @@ Hi, this is **Sam** from …
 - Inside a section, a line `<div key="value">` opens a scope and the next `</div>` line closes the innermost open one; key and value are `[\w-]+`. Both lines are removed from the card body. The md renders as plain html divs elsewhere.
 - `<div lang="code">` is a **language** scope; any other key is a variant **dimension** (an A/B split), `<div opener="warm">`.
 - A body line or response belongs to every scope open around it, and agrees with a selection unless one of them has a different value chosen for its key. A card's variants share its slot, so links into it never name a variant.
+- A variant scope opened outside any section, or opened outside every in-section scope with a heading as its next non-blank line, is a **section scope**: its `<div>` and `</div>` lines end the current section, and every node headed inside it belongs to its variant. Such a node is visible only when its variant agrees with the selection, whatever response leads to it; its own lines and responses belong to the scopes opened inside its section alone.
 - Scopes of different keys nest either way; one inside another of the same key, or one never closed, is an error.
 - Languages are the union of the language codes, in order of first appearance; dimensions and their values are the union of the variant scopes. Nothing is declared.
 - A heading inside language scopes alone is the card's title in that language. It starts no node: slot and labels come from the main heading alone. A second title for one language in a section, a `{…}` block on it, or a heading inside a variant scope is an error.
@@ -64,10 +65,10 @@ Ctrl+S and Save ▾ .html / .md write the md as it is, except:
 ## Selection
 `{ variants: {dim → value}, lang, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
 
-- A node is **visible** iff it is reachable from the root or a stray along responses that agree with the selection.
+- A node is **visible** iff it agrees with the selection and is reachable from the root or a stray along responses and nodes that agree with it.
 - Cards show only the lines that agree with the selection. Lines and responses of a dimension with no value chosen show framed with their variant. Unlike variants, a language is always chosen while the document has any.
 - After every reparse, path entries and variant values absent from the document are dropped; an absent language becomes the document's first.
-- Clicking a card or edge label appends it to the path; clicking a framed variant or a response's label also chooses the variants it is framed with.
+- Clicking a card or edge label appends it to the path; clicking a framed variant, a response's label, or a card in a section scope also chooses the variants it is framed with.
 - New call (`n`) empties the path and starts calling; Clear (Esc while not editing) empties the path and stops calling.
 - While calling, every click scrolls its card and the cards it leads to into view at once.
 - Backspace deletes the current card.

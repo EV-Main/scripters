@@ -94,6 +94,7 @@ function render() {
 		card.classList.toggle('current', n.id === current);
 		card.classList.toggle('terminal', !exits.has(n.id));
 		const head = el('header');
+		head.append(...chips(pending(n.scope)));
 		for (const name of n.labels) {
 			const p = pill(graph.labels.find(l => l.name === name));
 			const x = el('button', 'unlabel', '×');
@@ -124,7 +125,7 @@ function render() {
 			if (JSON.stringify(runs.at(-1)?.vs) !== JSON.stringify(vs)) runs.push({ vs, lines: [] });
 			runs.at(-1).lines.push(l.text);
 		}
-		for (const { vs, lines } of runs) {
+		for (const { vs, lines } of runs.filter(r => r.lines.some(l => l.trim() !== ''))) { // a variant holding only responses frames nothing
 			const html = el('template', '', marked.parse(lines.join('\n'))).content;
 			if (!vs.length) {
 				body.append(html);
@@ -137,7 +138,10 @@ function render() {
 			body.append(variant);
 		}
 		card.append(del, stick, head, body);
-		card.addEventListener('click', () => click(n));
+		card.addEventListener('click', () => {
+			if (!editing) Object.assign(sel.variants, Object.fromEntries(pending(n.scope)));
+			click(n);
+		});
 		canvas.append(card);
 		cards.set(n.id, card);
 	}

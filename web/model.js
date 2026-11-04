@@ -18,8 +18,9 @@ function parse(md) {
 
 	let fence = null;
 	let node = null;
-	const scopes = []; // the open `<div k="v">`s, outermost first: {key, value, line}
-	const scope = () => Object.fromEntries(scopes.map(s => [s.key, s.value]));
+	const scopes = []; // the open `<div k="v">`s, outermost first: {key, value, line, block}; a block one holds whole sections
+	const scope = block => Object.fromEntries(scopes.filter(s => s.block === block).map(s => [s.key, s.value]));
+	const inCard = () => scopes.some(s => !s.block);
 	lines.forEach((line, i) => {
 		const lineNo = i + 1;
 		const f = /^ {0,3}(`{3,}|~{3,})/.exec(line.text);
@@ -30,19 +31,21 @@ function parse(md) {
 		} else {
 			const h = /^ {0,3}#{1,6}(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/d.exec(line.text);
 			const rule = /^ {0,3}-{3,}[ \t]*$/.test(line.text);
-			if (preamble.end === md.length && h) preamble.end = line.start;
+			const d = /^ {0,3}<div ([\w-]+)="([\w-]+)">[ \t]*$/.exec(line.text);
+			const block = d !== null && d[1] !== 'lang' && !inCard() && (!node || /^ {0,3}#{1,6}(?:[ \t]|$)/.test(lines.find((l, j) => j > i && l.text.trim() !== '')?.text ?? ''));
+			if (preamble.end === md.length && (h || block)) preamble.end = line.start;
 			else if (preamble.end === md.length && line.text.trim() !== '') preamble.ruled = rule;
 			const noop = h?.[1]?.startsWith('-'); // groups sections when the md is read elsewhere
-			if (noop && scopes.length) return;
+			if (noop && inCard()) return;
 			if (noop) {
 				if (node) node.end = line.start;
 				node = null;
 				return;
 			}
-			if (h && scopes.length) {
+			if (h && inCard()) {
 				const t = heading(h[1] ?? '', 0, line.start, lineNo, errors);
-				const lang = scope().lang;
-				if (scopes.some(s => s.key !== 'lang')) return errors.push({ line: lineNo, msg: 'a heading inside a variant scope' });
+				const lang = scope(false).lang;
+				if (scopes.some(s => !s.block && s.key !== 'lang')) return errors.push({ line: lineNo, msg: 'a heading inside a variant scope' });
 				if (t.labels.length) errors.push({ line: lineNo, msg: 'labels go on the main heading' });
 				if (lang in node.titles) errors.push({ line: lineNo, msg: `a second \`${lang}\` title` });
 				else node.titles[lang] = t.title;
@@ -51,25 +54,30 @@ function parse(md) {
 			if (h) {
 				if (node) node.end = line.start;
 				node = heading(h[1] ?? '', line.start + (h.indices[1]?.[0] ?? line.text.length), line.start, lineNo, errors);
+				node.scope = scope(true);
 				nodes.push(node);
 				return;
 			}
 			const r = /^ {0,3}(?:[-*+]|\d+[.)])[ \t]+\[([^\]]*)\]\(#([^)\s]+)\)[ \t]*$/.exec(line.text);
 			if (r && node) {
-				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), scope: scope(), line: lineNo, start: line.start, end: line.end });
+				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), scope: scope(false), line: lineNo, start: line.start, end: line.end });
 				return;
 			}
-			const d = /^ {0,3}<div ([\w-]+)="([\w-]+)">[ \t]*$/.exec(line.text);
-			if (d && node) {
+			if (d && (node || block)) {
 				const [, key, value] = d;
+				if (block && node) node.end = line.start;
+				if (block) node = null;
 				if (scopes.some(s => s.key === key)) errors.push({ line: lineNo, msg: `\`<div ${key}>\` inside another` });
-				scopes.push({ key, value, line: lineNo });
+				scopes.push({ key, value, line: lineNo, block });
 				const values = key === 'lang' ? langs : (dims[key] ??= []);
 				if (!values.includes(value)) values.push(value);
 				return;
 			}
 			if (scopes.length && /^ {0,3}<\/div>[ \t]*$/.test(line.text)) {
-				scopes.pop();
+				if (scopes.pop().block && node) {
+					node.end = line.start;
+					node = null;
+				}
 				return;
 			}
 			// a link reference definition: invisible when the md is rendered elsewhere
@@ -88,7 +96,7 @@ function parse(md) {
 			}
 			if (rule && !node) return;
 		}
-		if (node) node.body.push({ text: line.text, scope: scope() });
+		if (node) node.body.push({ text: line.text, scope: scope(false) });
 		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text outside any card' });
 	});
 	for (const s of scopes) errors.push({ line: s.line, msg: `\`<div ${s.key}="${s.value}">\` not closed` });
@@ -160,11 +168,12 @@ function visible(graph, selection) {
 		if (!out.has(e.from)) out.set(e.from, []);
 		out.get(e.from).push(e.to);
 	}
+	const admitted = new Set(graph.nodes.filter(n => inScope(n, selection)).map(n => n.id));
 	const seen = new Set();
 	const stack = graph.nodes.filter((n, i) => i === 0 || n.stray).map(n => n.id); // strays still show, so they can be edited and linked
 	while (stack.length) {
 		const id = stack.pop();
-		if (seen.has(id)) continue;
+		if (seen.has(id) || !admitted.has(id)) continue;
 		seen.add(id);
 		stack.push(...(out.get(id) ?? []));
 	}

@@ -10,7 +10,7 @@ function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
 		...graph.marks.map(m => `mark ${m.dim ?? 'language'}=${m.value}`),
-		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`),
+		...graph.nodes.map(n => scoped(n.scope, `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`)),
 		...graph.edges.map(e => scoped(e.scope, `edge ${e.from} -[${e.label}]-> ${e.to}`)),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
@@ -465,6 +465,89 @@ test('variant scopes split one card and nest with language scopes either way', (
 		error L10: \`<div j="v">\` not closed
 		`,
 	);
+});
+
+test('a variant scope opening right before a heading or outside any section holds whole sections', () => {
+	checkParse(
+		`
+		# A
+		- [x](#b)
+		<div k="w">
+		</div>
+		<div k="v">
+
+		# B
+		<div lang="ru">
+		## Б
+		</div>
+		- [back](#a)
+		## C
+		</div>
+		<div k="x">
+		</div>
+		# D
+		- [d](#a)
+		`,
+		`
+		node a "A" body=""
+		{k=v}node b "B" ru="Б" body=""
+		{k=v}node c "C" stray body=""
+		node d "D" stray body=""
+		edge a -[x]-> b
+		edge b -[back]-> a
+		edge d -[d]-> a
+		langs: ru
+		dim k: v w x
+		warning L12: "C" is unreachable from the first card
+		warning L16: "D" is unreachable from the first card
+		`,
+	);
+	checkParse(
+		`
+		# A
+		<div k="v">
+		# B
+		</div>
+		stray text
+		<div k="w">
+		# C
+		<div k="u">
+		# D
+		</div>
+		`,
+		`
+		node a "A" body=""
+		{k=v}node b "B" body=""
+		{k=w}node c "C" body=""
+		{k=u}node d "D" body=""
+		dim k: u v w
+		error L5: text outside any card
+		error L8: \`<div k>\` inside another
+		error L6: \`<div k="w">\` not closed
+		`,
+	);
+});
+
+test('a card in a variant scope shows only with that variant, whatever leads to it', () => {
+	const md = `
+		# Intro
+		- [go](#opening)
+		<div german="false">
+		- [switch](#switch)
+		</div>
+		# Opening
+		- [plain](#switch)
+		<div german="true">
+		</div>
+		<div german="false">
+
+		# Switch
+		- [](#intro)
+		</div>
+	`;
+	checkVisible(md, {}, ['intro', 'opening', 'switch']);
+	checkVisible(md, { variants: { german: 'false' } }, ['intro', 'opening', 'switch']);
+	checkVisible(md, { variants: { german: 'true' } }, ['intro', 'opening']);
 });
 
 const VARIANTS = `
