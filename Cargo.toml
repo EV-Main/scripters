@@ -15,6 +15,7 @@ include = [
     "web/vendor/marked.min.js",
     "web/vendor/dagre.min.js",
     "web/model.js",
+    "web/translate.js",
     "web/place.js",
     "web/layout.js",
     "web/view.js",
@@ -31,9 +32,15 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "tgz"
 
 [dependencies]
+ask_llm = { version = "^3.11", default-features = false }
 clap = { version = "^4.5.4", features = ["derive"] }
 color-eyre = "^0.6.5"
+futures = "^0.3.34"
+rquickjs = "^0.14.0"
+serde_json = "^1.0.154"
+tempfile = "^3.27.0"
 tiny_http = "^0.12.0"
+tokio = { version = "^1.54.1", features = ["rt"] }
 
 [dev-dependencies]
 v_fixtures = "^0.3.4"
@@ -58,6 +65,3 @@ non_kebab_case_bins = "allow"
 [lints.rust]
 stable_features = "allow"
 unused_features = "allow"
-
-[profile.dev.package.scripters]
-debug = true # global default is line-tables-only
