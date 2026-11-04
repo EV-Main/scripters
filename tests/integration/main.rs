@@ -7,7 +7,7 @@ use std::{
 };
 
 fn build(test: &str, flags: &[&str], md: &str) -> Result<String, String> {
-	let dir = std::env::temp_dir().join(format!("scripters_{test}_{}", std::process::id()));
+	let dir = std::env::temp_dir().join(format!("scripters_{test}_{}_{:?}", std::process::id(), std::thread::current().id()));
 	std::fs::create_dir_all(&dir).unwrap();
 	let src = dir.join("script.md");
 	std::fs::write(&src, md).unwrap();
