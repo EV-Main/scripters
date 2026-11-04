@@ -121,7 +121,7 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 	std::fs::remove_dir_all(&dir).unwrap();
 }
 
-/// The page built from `md` runs `drive`, then its Save ▾ .md must download `expected`
+/// The page built from `md` runs `drive`, then its Export ▾ .md must download `expected`
 #[track_caller]
 fn check_save(md: &str, drive: &str, expected: &str) {
 	let html = build("save", md).unwrap();

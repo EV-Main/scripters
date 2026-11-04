@@ -141,7 +141,7 @@ fn watch(script: &Script) -> Result<()> {
 				(Method::Get, "/version") => (200, served.0.clone(), "text/plain"),
 				(Method::Put, "/") if disk.is_none() || if_match != disk => (
 					409,
-					format!("{} changed on disk since this page loaded; download a copy with Save to keep these edits", script.md.display()),
+					format!("{} changed on disk since this page loaded; download a copy with Export to keep these edits", script.md.display()),
 					"text/plain",
 				),
 				(Method::Put, "/") => {

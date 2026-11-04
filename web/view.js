@@ -279,13 +279,13 @@ function renderBar() {
 		sel.calling = false;
 		render();
 	});
-	const save = el('details', 'menu');
-	save.append(control(el('summary', '', 'Save'), `download a copy; Ctrl+S ${live ? 'writes the md' : 'overwrites the opened file'}`, ['s']));
+	const menu = el('details', 'menu');
+	menu.append(control(el('summary', '', 'Export'), `download a copy; Ctrl+S ${live ? 'writes the md' : 'overwrites the opened file'}`, ['e']));
 	const items = el('div', 'items');
 	button('.html', 'this page, with the current script', [], () => download(`${document.title}.html`, html(stamped()), 'text/html'), items);
 	button('.md', 'the script alone', [], () => download(`${document.title}.md`, stamped(), 'text/markdown'), items);
-	save.append(items);
-	bar.append(save);
+	menu.append(items);
+	bar.append(menu);
 	button(theme === 'dark' ? '☀' : '☾', 'theme', [], () => {
 		theme = theme === 'dark' ? 'light' : 'dark';
 		localStorage.setItem(THEME_KEY, theme);
@@ -677,7 +677,7 @@ async function overwrite() {
 		return;
 	}
 	if (!window.showSaveFilePicker) {
-		alert('This browser cannot overwrite files; download a copy with Save instead.');
+		alert('This browser cannot overwrite files; download a copy with Export instead.');
 		return;
 	}
 	let handle = await handles('readonly', s => s.get(location.href));

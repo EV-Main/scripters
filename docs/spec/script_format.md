@@ -51,7 +51,7 @@ Hi, this is **Sam** from …
 - A second mark for one dim (or a second language mark), or a value with no scope for it, is an error.
 
 ## Saving
-Ctrl+S and Save ▾ .html / .md write the md as it is, except:
+Ctrl+S and Export ▾ .html / .md write the md as it is, except:
 - Marks follow the current selection, one per chosen dim and one for the language: a changed one is rewritten in place, one for a dim no longer chosen is dropped, new ones go after the last mark, or after the labels if there is none.
 - If anything precedes the first heading, a `---` line follows it, unless the last such line already is one.
 
