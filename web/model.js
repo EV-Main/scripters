@@ -5,6 +5,8 @@ function parse(md) {
 	const labels = [];
 	const errors = [];
 	const langs = [];
+	const marks = [];
+	const preamble = { end: md.length, ruled: false }; // the lines before the first heading
 	const lines = [];
 	for (let start = 0; start < md.length; ) {
 		const nl = md.indexOf('\n', start);
@@ -25,6 +27,9 @@ function parse(md) {
 			fence = f[1];
 		} else {
 			const h = /^ {0,3}#{1,6}(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/d.exec(line.text);
+			const rule = /^ {0,3}-{3,}[ \t]*$/.test(line.text);
+			if (preamble.end === md.length && h) preamble.end = line.start;
+			else if (preamble.end === md.length && line.text.trim() !== '') preamble.ruled = rule;
 			const noop = h?.[1]?.startsWith('-'); // groups sections when the md is read elsewhere
 			if (noop && lang) return;
 			if (noop) {
@@ -68,6 +73,14 @@ function parse(md) {
 				else labels.push({ name: l[1], color: l[2], description: (l[3] ?? '').replace(/\\(.)/g, '$1'), line: lineNo, start: line.start, end: line.end });
 				return;
 			}
+			const m = /^\[(?:([\w-]+)=([\w-]+)|lang="([\w-]+)")\]:[ \t]+#[ \t]*$/.exec(line.text);
+			if (m && !node) {
+				const dim = m[1] ?? null;
+				if (marks.some(k => k.dim === dim)) errors.push({ line: lineNo, msg: `a second mark for \`${dim ?? 'lang'}\`` });
+				else marks.push({ dim, value: m[2] ?? m[3], line: lineNo, start: line.start, end: line.end });
+				return;
+			}
+			if (rule && !node) return;
 		}
 		if (node) node.body.push({ text: line.text, lang: lang?.code ?? null });
 		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text outside any card' });
@@ -102,7 +115,7 @@ function parse(md) {
 	}
 	for (const n of nodes) n.root = !entered.has(n.slot);
 
-	const graph = { nodes, edges, labels, langs, dims: {}, errors };
+	const graph = { nodes, edges, labels, marks, preamble, langs, dims: {}, errors };
 	if (errors.length === 0) {
 		const reached = visible(graph, {});
 		for (const n of nodes) if (!reached.has(n.id)) errors.push({ line: n.line, msg: `"${n.title}" is unreachable from any root` });
@@ -115,6 +128,11 @@ function parse(md) {
 		}
 	}
 	for (const vs of Object.values(graph.dims)) vs.sort();
+	for (const m of marks) {
+		if (m.dim === null && !langs.includes(m.value)) errors.push({ line: m.line, msg: `no \`<div lang="${m.value}">\`` });
+		else if (m.dim !== null && !(m.dim in graph.dims)) errors.push({ line: m.line, msg: `no variant is tagged \`${m.dim}\`` });
+		else if (m.dim !== null && !graph.dims[m.dim].includes(m.value)) errors.push({ line: m.line, msg: `\`${m.dim}\` has no variant \`${m.value}\`` });
+	}
 	return graph;
 }
 

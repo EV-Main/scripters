@@ -7,6 +7,7 @@ const dedent = s => s.replace(/^\n/, '').replace(/^\t+/gm, '');
 function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
+		...graph.marks.map(m => `mark ${m.dim ?? 'language'}=${m.value}`),
 		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => (l.lang ? `{${l.lang}}${l.text}` : l.text)).join('\n').trim())}`),
 		...graph.edges.map(e => `edge ${e.from} -[${e.label}]-> ${e.to}${e.lang ? ` lang=${e.lang}` : ''}`),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
@@ -209,6 +210,57 @@ test('labels are defined before the first heading and attached with `.name`', ()
 	);
 });
 
+test('selection marks and a `---` rule may precede the first heading', () => {
+	checkParse(
+		`
+		[l]: <oklch(0 0 0)>
+		[k=v]: #
+		[lang="ru"]: #
+
+		---
+
+		# A {k=v}
+		<div lang="ru">
+		a
+		</div>
+		- [x](#b)
+		# - Group
+		---
+		# B {k=w}
+		`,
+		`
+		label l oklch(0 0 0) ""
+		mark k=v
+		mark language=ru
+		node a{k=v} "A" root body="{ru}a"
+		node b{k=w} "B" body=""
+		edge a{k=v} -[x]-> b{k=w}
+		langs: ru
+		dim k: v w
+		`,
+	);
+	checkParse(
+		`
+		[k=x]: #
+		[k=v]: #
+		[j=v]: #
+		[lang="en"]: #
+		# A {k=v}
+		`,
+		`
+		mark k=x
+		mark j=v
+		mark language=en
+		node a{k=v} "A" root body=""
+		dim k: v
+		error L2: a second mark for \`k\`
+		error L1: \`k\` has no variant \`x\`
+		error L3: no variant is tagged \`j\`
+		error L4: no \`<div lang="en">\`
+		`,
+	);
+});
+
 test('spans locate the text an edit replaces', () => {
 	const md = '[l]: <oklch(0 0 0)>\n\n# A {k=v .l} ##\nbody\n- [x](#b)\n# B\n';
 	const g = parse(md);
@@ -219,6 +271,13 @@ test('spans locate the text an edit replaces', () => {
 	assert.equal(md.slice(0, b.attrs.start), '[l]: <oklch(0 0 0)>\n\n# A {k=v .l} ##\nbody\n- [x](#b)\n# B');
 	assert.equal(md.slice(g.edges[0].start, g.edges[0].end), '- [x](#b)\n');
 	assert.equal(md.slice(g.labels[0].start, g.labels[0].end), '[l]: <oklch(0 0 0)>\n');
+	assert.deepEqual(g.preamble, { end: md.indexOf('# A'), ruled: false });
+
+	const marked = '[k=v]: #\n\n---\n\n# - G\n# A {k=v}\n';
+	const m = parse(marked);
+	assert.equal(marked.slice(m.marks[0].start, m.marks[0].end), '[k=v]: #\n');
+	assert.deepEqual(m.preamble, { end: marked.indexOf('# - G'), ruled: true });
+	assert.equal(parse('---\n[k=v]: #\n# A {k=v}\n').preamble.ruled, false);
 });
 
 test('`<div lang>` scopes body lines and responses to a language', () => {

@@ -1,6 +1,9 @@
 # Script format
 ```md
 [hot]: <oklch(0.62 0.19 25)> "Ready to buy"
+[opener=warm]: #
+
+---
 
 # Introduction {.hot}
 Hi, this is **Sam** from …
@@ -15,7 +18,7 @@ Hi, this is **Sam** from …
 ## Nodes
 - Each ATX heading (`#` to `######`, any level) outside a code fence and a language scope starts a node; levels only shape the md elsewhere. Its source span runs to the next such heading.
 - A heading whose text starts with `-` (`# - Objections`, `## -Notes`) is a **noop**: it ends the current section and starts none, so it only groups sections when the md is read elsewhere. Inside a language scope it is ignored.
-- Non-blank text outside any section (before the first heading, or under a noop), other than label definitions, is an error.
+- Non-blank text outside any section (before the first heading, or under a noop), other than label definitions, selection marks and `---` lines, is an error.
 - A trailing `{k=v k2=v2 .label}` block on the heading is stripped from the title. Its `k=v` tokens are the node's variant tag; `.name` tokens are labels.
 - The GitHub anchor slug of the remaining title is the node's **slot**. Variants of one step share a title, so `# Opening {opener=warm}` and `# Opening {opener=cold}` both fill `#opening`.
 - Node id = slot + sorted tag set. Two nodes with the same id are an error.
@@ -39,6 +42,16 @@ Hi, this is **Sam** from …
 - Languages are the union of the scopes' codes, in order of first appearance; nothing is declared.
 - A scope inside another, or one never closed, is an error.
 
+## Marks
+- A line `[dim=value]: #` or `[lang="code"]: #` outside any section marks a chosen variant value, or the chosen language: a link reference definition, so it renders as nothing elsewhere.
+- A page with no selection of its own starts from the marks.
+- A second mark for one dim (or a second language mark), a dim no heading tags, a value no heading gives it, or a language with no scope, is an error.
+
+## Saving
+Ctrl+S and Save ▾ .html / .md write the md as it is, except:
+- If it has marks, they follow the current selection: a changed one is rewritten in place, one for a dim no longer chosen is dropped, new ones go after the last mark. Save ▾ selection adds the marks after the labels, or removes them all.
+- If anything precedes the first heading, a `---` line follows it, unless the last such line already is one.
+
 ## Editing
 - An edit whose result has errors is refused.
 - Deleting a card removes its section. If it was the last node of its slot, the responses into that slot go with it.
@@ -47,7 +60,7 @@ Hi, this is **Sam** from …
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside a language scope, or at the end of its section if it has none.
 
 ## Selection
-`{ variants: {dim → value}, lang, path: [nodeId], calling: bool }`, kept in `sessionStorage`. A dim without a value is not chosen yet and admits every variant.
+`{ variants: {dim → value}, lang, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
 
 - A node is **visible** iff it is reachable from a root through nodes whose tags all agree with the chosen variants, along responses in the chosen language.
 - Cards show only the chosen language's lines. Unlike variants, a language is always chosen while the document has any.

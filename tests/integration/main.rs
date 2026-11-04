@@ -120,3 +120,91 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 	child.wait().unwrap();
 	std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// The page built from `md` runs `drive`, then its Save ▾ .md must download `expected`
+#[track_caller]
+fn check_save(md: &str, drive: &str, expected: &str) {
+	let html = build("save", md).unwrap();
+	let dir = std::env::temp_dir().join(format!("call_scripters_save_page_{}_{:?}", std::process::id(), std::thread::current().id()));
+	std::fs::create_dir_all(&dir).unwrap();
+	// the downloaded text lands in a <script> block, which the dumped DOM holds verbatim
+	let capture = r#"<script>
+const out = Object.assign(document.createElement('script'), { type: 'text/plain', id: 'saved' });
+document.body.append(out);
+const B = Blob;
+window.Blob = function (parts, o) { out.textContent = parts.join(''); return new B(parts, o); };
+HTMLAnchorElement.prototype.click = () => {};
+const button = text => [...document.querySelectorAll('#bar button')].find(b => b.textContent === text);
+@DRIVE@
+button('.md').click();
+</script>
+</body>"#
+		.replace("@DRIVE@", drive);
+	let page = dir.join("script.html");
+	std::fs::write(&page, html.replacen("</body>", &capture, 1)).unwrap();
+	let browser = ["chromium", "chromium-browser", "google-chrome"]
+		.into_iter()
+		.find(|b| Command::new(b).arg("--version").output().is_ok_and(|o| o.status.success()))
+		.expect("a chromium on PATH");
+	let out = Command::new(browser)
+		.args(["--headless", "--disable-gpu", "--no-first-run", "--no-sandbox", "--dump-dom"])
+		.arg(format!("--user-data-dir={}", dir.join("profile").display()))
+		.arg(format!("file://{}", page.display()))
+		.output()
+		.unwrap();
+	std::fs::remove_dir_all(&dir).unwrap();
+	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+	let dom = String::from_utf8(out.stdout).unwrap();
+	let (_, rest) = dom.split_once(r#"<script type="text/plain" id="saved">"#).unwrap_or_else(|| panic!("the page never saved:\n{dom}"));
+	assert_eq!(rest.split_once("</script>").unwrap().0, expected);
+}
+
+#[test]
+fn md_save_round_trips() {
+	let demo = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.md")).unwrap();
+	check_save(&demo, "", &demo);
+	let md = r#"[hot]: <oklch(0.62 0.19 25)> "Ready"
+[k=v]: #
+[lang="ru"]: #
+
+---
+
+# Start {.hot k=v} <!-- the opener -->
+Hi <!-- inline comment --> there.
+<div lang="ru">
+Привет
+</div>
+
+- [Go](#next) <!-- not a response: the comment is part of the item -->
+- [Go](#next)
+
+# Start {k=w}
+- [Go](#next)
+
+## - Group <!-- noop -->
+### Next ###
+<!--
+multi-line comment
+-->
+###### Deep
+- [Back](#start)
+"#;
+	check_save(md, "", md);
+	check_save("# A\n", "", "# A\n");
+}
+
+#[test]
+fn md_save_ends_the_preamble_with_a_rule() {
+	check_save("[l]: <oklch(0 0 0)>\n# A\n", "", "[l]: <oklch(0 0 0)>\n\n---\n\n# A\n");
+	check_save("[l]: <oklch(0 0 0)>\n---\n# A\n", "", "[l]: <oklch(0 0 0)>\n---\n# A\n");
+}
+
+#[test]
+fn md_save_marks_the_selection_once_pinned() {
+	let md = "# A {k=v}\n# A {k=w}\n";
+	let choose = "const s = document.querySelector('#bar select'); s.value = 'w'; s.dispatchEvent(new Event('change'));";
+	check_save(md, choose, md);
+	check_save(md, &format!("{choose} button('selection').click();"), "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
+	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", choose, "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
+	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", "button('✓ selection').click();", "\n---\n\n# A {k=v}\n# A {k=w}\n");
+}

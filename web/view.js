@@ -21,7 +21,12 @@ const canvas = document.getElementById('canvas');
 
 let md = document.getElementById('src').textContent;
 let graph = parse(md);
-let sel = JSON.parse(sessionStorage.getItem(KEY) ?? '{"variants":{},"path":[],"calling":false}');
+let sel = JSON.parse(sessionStorage.getItem(KEY)) ?? {
+	variants: Object.fromEntries(graph.marks.filter(m => m.dim !== null).map(m => [m.dim, m.value])),
+	lang: graph.marks.find(m => m.dim === null)?.value,
+	path: [],
+	calling: false,
+};
 let saved = md; // what the file on disk holds
 let undos = []; // earlier mds, latest last; in memory only
 let redos = [];
@@ -291,8 +296,11 @@ function renderBar() {
 	const save = el('details', 'menu');
 	save.append(control(el('summary', '', 'Save'), `download a copy; Ctrl+S ${live ? 'writes the md' : 'overwrites the opened file'}`, ['s']));
 	const items = el('div', 'items');
-	button('.html', 'this page, with the current script', [], () => download(`${document.title}.html`, html(), 'text/html'), items);
-	button('.md', 'the script alone', [], () => download(`${document.title}.md`, md, 'text/markdown'), items);
+	button('.html', 'this page, with the current script', [], () => download(`${document.title}.html`, html(stamped()), 'text/html'), items);
+	button('.md', 'the script alone', [], () => download(`${document.title}.md`, stamped(), 'text/markdown'), items);
+	const pinned = graph.marks.length > 0;
+	const pin = () => assert(!commit(pinned ? splice(graph.marks.map(m => ({ start: m.start, end: m.end, text: '' }))) : stamped(true)), 'pinning broke the document');
+	button(pinned ? '✓ selection' : 'selection', 'mark the chosen variants and language at the top of the md, kept current by every save', [], pin, items).disabled = !pinned && (graph.errors.length || (!Object.keys(sel.variants).length && !sel.lang));
 	save.append(items);
 	bar.append(save);
 	button(theme === 'dark' ? '☀' : '☾', 'theme', [], () => {
@@ -648,25 +656,44 @@ function download(name, text, type) {
 	a.click();
 }
 
-function html() {
-	assert(!SCRIPT_TAG.test(md), 'markdown contains a <script> tag; commit should have rejected it');
+// the md as saved: its selection marks, if it keeps any (or `pin`), follow the selection, and a `---` ends a nonempty preamble
+function stamped(pin = false) {
+	if (graph.errors.length) return md; // nothing to stamp against; the broken md saves as it is
+	const want = new Map([...Object.keys(graph.dims).filter(k => k in sel.variants).map(k => [k, sel.variants[k]]), ...(sel.lang ? [[null, sel.lang]] : [])]);
+	const line = (dim, value) => (dim === null ? `[lang="${value}"]: #\n` : `[${dim}=${value}]: #\n`);
+	const edits = graph.marks.flatMap(m => {
+		const value = want.get(m.dim);
+		want.delete(m.dim);
+		return value === m.value ? [] : [{ start: m.start, end: m.end, text: value === undefined ? '' : line(m.dim, value) }];
+	});
+	const at = graph.marks.at(-1)?.end ?? graph.labels.at(-1)?.end ?? 0;
+	if (graph.marks.length || pin) edits.push({ start: at, end: at, text: [...want].map(([d, v]) => line(d, v)).join('') });
+	const next = splice(edits);
+	const g = parse(next);
+	assert(!g.errors.length, `stamping broke the document: ${g.errors.map(e => e.msg).join('; ')}`);
+	const { end, ruled } = g.preamble;
+	return next.slice(0, end).trim() === '' || ruled ? next : `${next.slice(0, end).trimEnd()}\n\n---\n\n${next.slice(end)}`;
+}
+
+function html(text) {
+	assert(!SCRIPT_TAG.test(text), 'markdown contains a <script> tag; commit should have rejected it');
 	const doc = new DOMParser().parseFromString(pristine, 'text/html');
-	doc.getElementById('src').textContent = md;
+	doc.getElementById('src').textContent = text;
 	delete doc.documentElement.dataset.live; // a downloaded copy is not served
 	return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
 }
 
 // a page on file:// cannot learn its own file handle: the user picks the file once, then it is remembered per url
 async function overwrite() {
+	const text = stamped();
 	if (live) {
-		const r = await fetch('/', { method: 'PUT', headers: { 'If-Match': live }, body: md });
+		const r = await fetch('/', { method: 'PUT', headers: { 'If-Match': live }, body: text });
 		if (!r.ok) {
 			alert(await r.text());
 			return;
 		}
 		live = await r.text();
-		saved = md;
-		renderBar();
+		wrote(text);
 		return;
 	}
 	if (!window.showSaveFilePicker) {
@@ -685,10 +712,18 @@ async function overwrite() {
 		await handles('readwrite', s => s.put(handle, location.href));
 	}
 	const w = await handle.createWritable();
-	await w.write(html());
+	await w.write(html(text));
 	await w.close();
-	saved = md;
-	renderBar();
+	wrote(text);
+}
+
+// stamping adds no undo step: it changes no card. An open edit holds offsets into the md, so the md takes the stamp at a later save
+function wrote(text) {
+	saved = text;
+	if (editing || text === md) return renderBar();
+	md = text;
+	graph = parse(md);
+	render();
 }
 
 function handles(mode, op) {
