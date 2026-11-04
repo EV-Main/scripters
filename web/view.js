@@ -122,6 +122,7 @@ function render() {
 		cards.set(n.id, card);
 	}
 	const labels = edges.map(e => {
+		if (e.label.trim() === '') return null; // walked by clicking the card it leads to
 		const label = el('button', 'label', marked.parseInline(e.label));
 		label.classList.toggle('visited', walked.has(`${e.from}\n${e.to}`));
 		label.style.setProperty('--hue', hue(e));
@@ -158,7 +159,8 @@ function render() {
 	edges.forEach((e, i) => {
 		if (inSlot(e)) return;
 		const [v, w] = flipped[i] ? [e.to, e.from] : [e.from, e.to];
-		g.setEdge(v, w, { width: labels[i].offsetWidth, height: labels[i].offsetHeight, labelpos: 'c' }, String(i));
+		const [width, height] = labels[i] ? [labels[i].offsetWidth, labels[i].offsetHeight] : [0, 0];
+		g.setEdge(v, w, { width, height, labelpos: 'c' }, String(i));
 	});
 	dagre.layout(g);
 	place(g);
@@ -214,7 +216,7 @@ function render() {
 		path.classList.toggle('visited', walked.has(`${e.from}\n${e.to}`));
 		path.style.setProperty('--hue', hue(e));
 		svg.append(path);
-		Object.assign(labels[i].style, { left: `${x - labels[i].offsetWidth / 2}px`, top: `${y - labels[i].offsetHeight / 2}px` });
+		if (labels[i]) Object.assign(labels[i].style, { left: `${x - labels[i].offsetWidth / 2}px`, top: `${y - labels[i].offsetHeight / 2}px` });
 	});
 	canvas.prepend(svg);
 	Object.assign(canvas.style, { width: `${width}px`, height: `${height}px` });

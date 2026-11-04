@@ -36,10 +36,10 @@ const reported = [
 	],
 ];
 
-// self-loops, parallel edges and edges spanning many ranks
+// self-loops, parallel edges, edges spanning many ranks, and unlabeled edges
 const tangled = [
 	Object.fromEntries(Object.entries({ a: 0, b: 2, c: 2, d: 4, e: 8, f: 6 }).map(([id, rank]) => [id, [rank, 220, 110]])),
-	[['a', 'b'], ['a', 'b'], ['a', 'c'], ['b', 'b'], ['b', 'b'], ['a', 'e'], ['c', 'e'], ['b', 'd'], ['d', 'd'], ['d', 'e'], ['c', 'f'], ['a', 'f'], ['f', 'f']].map(e => [...e, 70, 18]),
+	[['a', 'b'], ['a', 'b'], ['a', 'c'], ['b', 'b'], ['b', 'b'], ['a', 'e'], ['c', 'e'], ['b', 'd'], ['d', 'd'], ['d', 'e'], ['c', 'f'], ['a', 'f'], ['f', 'f']].map((e, i) => [...e, ...(i % 3 ? [70, 18] : [0, 0])]),
 ];
 
 for (const rankdir of ['TB', 'LR'])

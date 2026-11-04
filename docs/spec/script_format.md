@@ -26,6 +26,7 @@ Hi, this is **Sam** from …
 
 ## Edges
 - A list item consisting of exactly one `[label](#slot)` is a **response**: an edge to every node in that slot. It is removed from the card body and drawn as an edge label. Links inside prose stay links.
+- An empty `[](#slot)` is an unlabeled response, drawn as a bare edge; it is an error unless it is its card's only response.
 - A response to a slot that has no nodes is an error.
 - Roots are nodes whose slot has no incoming edge. The graph may have several roots, rejoin and cycle.
 - A node unreachable from every root is an error.

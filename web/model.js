@@ -50,7 +50,7 @@ function parse(md) {
 				nodes.push(node);
 				return;
 			}
-			const r = /^ {0,3}(?:[-*+]|\d+[.)])[ \t]+\[([^\]]+)\]\(#([^)\s]+)\)[ \t]*$/.exec(line.text);
+			const r = /^ {0,3}(?:[-*+]|\d+[.)])[ \t]+\[([^\]]*)\]\(#([^)\s]+)\)[ \t]*$/.exec(line.text);
 			if (r && node) {
 				node.responses.push({ label: r[1], slot: decodeURIComponent(r[2]), lang: lang?.code ?? null, line: lineNo, start: line.start, end: line.end });
 				return;
@@ -103,6 +103,7 @@ function parse(md) {
 	const entered = new Set();
 	for (const n of nodes) {
 		for (const r of n.responses) {
+			if (r.label.trim() === '' && n.responses.length > 1) errors.push({ line: r.line, msg: "an unlabeled response must be its card's only one" });
 			const targets = slots.get(r.slot);
 			if (!targets) {
 				errors.push({ line: r.line, msg: `response links to unknown slot #${r.slot}` });

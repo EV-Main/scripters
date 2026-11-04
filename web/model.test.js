@@ -97,6 +97,28 @@ test('a heading starting with `-` ends the section and starts nothing', () => {
 	);
 });
 
+test('an unlabeled response must be its card\'s only one', () => {
+	checkParse(
+		`
+		# A
+		- [](#b)
+		# B
+		- [x](#c)
+		- [](#c)
+		# C
+		`,
+		`
+		node a "A" root body=""
+		node b "B" body=""
+		node c "C" body=""
+		edge a -[]-> b
+		edge b -[x]-> c
+		edge b -[]-> c
+		error L5: an unlabeled response must be its card's only one
+		`,
+	);
+});
+
 test('canonical id sorts tag keys', () => {
 	checkParse(
 		`

@@ -16,6 +16,8 @@ function place(g) {
 		return members.length - 1;
 	};
 
+	const placed = l => 'x' in l; // dagre positions no label of zero size, except on self-loops
+
 	const cards = new Map(g.nodes().map(v => {
 		const n = g.node(v);
 		const loops = g.outEdges(v, v).map(e => g.edge(e));
@@ -28,8 +30,8 @@ function place(g) {
 		const l = g.edge(e);
 		const inner = l.points.slice(1, -1); // the ends are where dagre cut the edge at its cards' borders
 		assert(inner.length >= 1, `edge ${e.v}→${e.w} crosses no layer; dagre no longer doubles ranks for labels`);
-		const labelAt = inner.findIndex(p => p[axis] === l[axis] && p[cross] === l[cross]);
-		assert(labelAt >= 0, `edge ${e.v}→${e.w}'s label sits on none of its dummies`);
+		const labelAt = placed(l) ? inner.findIndex(p => p[axis] === l[axis] && p[cross] === l[cross]) : -1;
+		assert(!placed(l) || labelAt >= 0, `edge ${e.v}→${e.w}'s label sits on none of its dummies`);
 		const dummies = inner.map((p, i) => member(p, { lo: i === labelAt ? l[crossSize] / 2 : 0, hi: i === labelAt ? l[crossSize] / 2 : 0, dummy: { lo: true, hi: true } }));
 		return { e, l, labelAt, dummies, chain: [cards.get(e.v), ...dummies, cards.get(e.w)] };
 	});
@@ -91,7 +93,7 @@ function place(g) {
 	for (const { e, l, labelAt, dummies } of chains) {
 		const { points } = l;
 		dummies.forEach((m, i) => (points[i + 1][cross] = to[m]));
-		l[cross] = to[dummies[labelAt]];
+		if (labelAt >= 0) l[cross] = to[dummies[labelAt]];
 		points[0] = dagre.util.intersectRect(g.node(e.v), points[1]);
 		points[points.length - 1] = dagre.util.intersectRect(g.node(e.w), points.at(-2));
 	}
@@ -100,7 +102,7 @@ function place(g) {
 		...g.nodes().map(v => g.node(v)),
 		...g.edges().flatMap(e => {
 			const l = g.edge(e);
-			return [l, ...l.points.map(p => ({ [cross]: p[cross], [crossSize]: 0 }))];
+			return [...(placed(l) ? [l] : []), ...l.points.map(p => ({ [cross]: p[cross], [crossSize]: 0 }))];
 		}),
 	];
 	const lo = Math.min(...spans.map(s => s[cross] - s[crossSize] / 2));
@@ -108,7 +110,7 @@ function place(g) {
 	for (const v of g.nodes()) g.node(v)[cross] += margin - lo;
 	for (const e of g.edges()) {
 		const l = g.edge(e);
-		for (const p of [...l.points, l]) p[cross] += margin - lo;
+		for (const p of [...l.points, ...(placed(l) ? [l] : [])]) p[cross] += margin - lo;
 	}
 	g.graph()[crossSize] = hi - lo + 2 * margin;
 }
