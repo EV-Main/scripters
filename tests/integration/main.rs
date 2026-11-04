@@ -243,3 +243,17 @@ fn following_a_variant_response_chooses_its_variant() {
 	let follow = "[...document.querySelectorAll('#canvas button.label')].find(b => b.textContent === 'k=wy').click();";
 	check_save(&[], md, follow, &format!("[k=w]: #\n[layout=\"bfs\"]: #\n\n---\n\n{md}"));
 }
+
+#[test]
+fn new_card_opens_its_editor() {
+	let press = |key: &str| format!("document.body.dispatchEvent(new KeyboardEvent('keydown', {{ key: '{key}', bubbles: true }}));");
+	let layout = "[layout=\"bfs\"]: #\n\n---\n\n";
+	let write = "const ta = document.querySelector('#canvas textarea'); ta.value = '# B\\nHi'; ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));";
+	check_save(&[], "# A\n", &format!("{}{write}", press("n")), &format!("{layout}# A\n\n# B\nHi\n"));
+	check_save(
+		&[],
+		"# New card\n",
+		&format!("{}{}", press("n"), press("Escape")),
+		&format!("{layout}# New card\n\n# New card 2\n"),
+	);
+}

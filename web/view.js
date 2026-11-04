@@ -279,11 +279,14 @@ function renderBar() {
 	button('+', 'zoom in', ['+', '='], () => zoomTo(zoom * ZOOM_STEP, ...center()));
 	button('↶', 'undo an edit; Ctrl+Z too', ['u'], () => travel(undos, redos)).disabled = !undos.length;
 	button('↷', 'redo; Ctrl+Y, Ctrl+Shift+Z too', ['U'], () => travel(redos, undos)).disabled = !redos.length;
+	const add = button('⊞', 'new card', ['n'], create);
+	add.classList.add('push');
+	add.disabled = graph.errors.length > 0;
 	button('Labels', 'define the labels cards carry', ['l'], () => {
 		renderLabels();
 		labelsDialog.showModal();
-	}).classList.add('push');
-	button('New call', 'clear the walked path; the view follows the call until Clear', ['n'], newCall).classList.toggle('on', sel.calling);
+	});
+	button('New call', 'clear the walked path; the view follows the call until Clear; `c` scrolls to the start first', ['c'], newCall).classList.toggle('on', sel.calling);
 	button('Clear', 'clear the walked path and end the call', ['Escape'], () => {
 		sel.path = [];
 		sel.calling = false;
@@ -315,8 +318,11 @@ function newCall() {
 	toStart();
 }
 
+// whether the view moved
 function toStart() {
+	const at = [scrollX, scrollY];
 	scrollTo(canvas.getBoundingClientRect().left + scrollX, 0);
+	return scrollX !== at[0] || scrollY !== at[1];
 }
 
 function glide(t) {
@@ -607,6 +613,18 @@ function connect(n, slot) {
 	if (errors) alert(`Cannot link "${n.title}" to #${slot}:\n${errors.map(e => e.msg).join('\n')}`);
 }
 
+function create() {
+	let i = 1;
+	while (graph.nodes.some(n => n.id === `new-card${i > 1 ? `-${i}` : ''}`)) i++; // the slot of the title below
+	const title = `New card${i > 1 ? ` ${i}` : ''}`;
+	const failed = commit(splice([{ start: md.length, end: md.length, text: `${md.endsWith('\n') ? '' : '\n'}\n# ${title}\n` }]));
+	assert(!failed, `appending "${title}" broke the document: ${failed?.map(e => e.msg).join('; ')}`);
+	const n = graph.nodes.find(n => n.title === title);
+	edit(n);
+	cards.get(n.id).querySelector('textarea').setSelectionRange(2, 2 + title.length);
+	reveal(n.id);
+}
+
 function edit(n) {
 	editing = n.id;
 	const card = cards.get(n.id);
@@ -757,10 +775,10 @@ document.addEventListener('keydown', e => {
 			requestAnimationFrame(glide);
 		}
 		held.add(e.key);
+	} else if (e.key === 'c' && toStart()) { // once at the start, `c` is New call
+		return;
 	} else if (shortcuts.has(e.key)) {
 		shortcuts.get(e.key).click();
-	} else if (e.key === 'c') {
-		toStart();
 	} else if (e.key === 'Backspace' && cards.has(sel.path.at(-1))) {
 		e.preventDefault();
 		remove(graph.nodes.find(n => n.id === sel.path.at(-1)));

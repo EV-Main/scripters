@@ -99,6 +99,7 @@ Every response leads one rank or more down, except one in each loop, which point
 - Deleting a card removes its section and the responses into its slot.
 - Renaming or deleting a label rewrites every heading carrying it.
 - Undo (`u`, Ctrl+Z) and redo (`U`, Ctrl+Y, Ctrl+Shift+Z) step through this page's edits; the history lives in page memory, not the md.
+- New card (⊞, `n`) appends `# New card` to the md, numbered past any slot it would collide with, and opens its editor.
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside any scope, or at the end of its section if it has none.
 
 ### Selection
@@ -108,6 +109,6 @@ Every response leads one rank or more down, except one in each loop, which point
 - Cards show only the lines that agree with the selection. Lines and responses of a dimension with no value chosen show framed with their variant. Unlike variants, a language is always chosen while the document has any.
 - After every reparse, path entries and variant values absent from the document are dropped; an absent language becomes the document's first.
 - Clicking a card or edge label appends it to the path; clicking a framed variant, a response's label, or a card in a section scope also chooses the variants it is framed with.
-- New call (`n`) empties the path and starts calling; Clear (Esc while not editing) empties the path and stops calling.
+- `c` scrolls to the start; once there, it is New call. New call empties the path and starts calling; Clear (Esc while not editing) empties the path and stops calling.
 - While calling, every click scrolls its card and the cards it leads to into view at once.
 - Backspace deletes the current card.
