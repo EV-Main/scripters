@@ -98,6 +98,7 @@ fn watch(script: &Script) -> Result<()> {
 	};
 	let mut served = build(&script.read()?)?;
 	let mut rejected = None; // version of the md on disk that failed to bundle, so it is reported once
+	let mut errors = Taper { last: None, repeats: 0 };
 	let server = Server::http("127.0.0.1:0").map_err(|e| eyre!(e))?;
 	let addr = server.server_addr().to_ip().expect("bound to an ip address");
 	let host = addr.to_string();
@@ -109,6 +110,7 @@ fn watch(script: &Script) -> Result<()> {
 		let mut req = server.recv().wrap_err("receiving a request")?;
 		let disk = match script.read() {
 			Ok(src) => {
+				errors.last = None;
 				let v = version(&src);
 				if v != served.0 && rejected.as_ref() != Some(&v) {
 					match build(&src) {
@@ -117,7 +119,7 @@ fn watch(script: &Script) -> Result<()> {
 							rejected = None;
 						}
 						Err(e) => {
-							eprintln!("{e:?}");
+							errors.report(format!("{e:?}"));
 							rejected = Some(v.clone());
 						}
 					}
@@ -125,7 +127,7 @@ fn watch(script: &Script) -> Result<()> {
 				Some(v)
 			}
 			Err(e) => {
-				eprintln!("{e:?}"); // an editor may be mid-save; the page's next poll retries
+				errors.report(format!("{e:?}")); // an editor may be mid-save; the page's next poll retries
 				None
 			}
 		};
@@ -162,7 +164,29 @@ fn watch(script: &Script) -> Result<()> {
 			.with_status_code(status)
 			.with_header(Header::from_bytes("Content-Type", content_type).expect("static header is valid"));
 		if let Err(e) = req.respond(response) {
-			eprintln!("responding: {e}"); // the tab went away mid-response
+			errors.report(format!("responding: {e}")); // the tab went away mid-response
+		}
+	}
+}
+
+/// The page polls every request through here, so a persisting failure would print on each poll.
+struct Taper {
+	last: Option<String>,
+	repeats: u32,
+}
+
+impl Taper {
+	fn report(&mut self, msg: String) {
+		if self.last.as_ref() == Some(&msg) {
+			self.repeats += 1;
+		} else {
+			self.last = Some(msg);
+			self.repeats = 1;
+		}
+		match self.repeats {
+			1 => eprintln!("{}", self.last.as_ref().expect("set above")),
+			n if n.is_power_of_two() => eprintln!("^ repeated {n} times"),
+			_ => {}
 		}
 	}
 }
