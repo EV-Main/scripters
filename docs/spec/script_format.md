@@ -14,7 +14,8 @@ Hi, this is **Sam** from …
 
 ## Nodes
 - Each ATX heading (`#` to `######`, any level) outside a code fence and a language scope starts a node; levels only shape the md elsewhere. Its source span runs to the next such heading.
-- Non-blank text before the first heading, other than label definitions, is an error.
+- A heading whose text starts with `-` (`# - Objections`, `## -Notes`) is a **noop**: it ends the current section and starts none, so it only groups sections when the md is read elsewhere. Inside a language scope it is ignored.
+- Non-blank text outside any section (before the first heading, or under a noop), other than label definitions, is an error.
 - A trailing `{k=v k2=v2 .label}` block on the heading is stripped from the title. Its `k=v` tokens are the node's variant tag; `.name` tokens are labels.
 - The GitHub anchor slug of the remaining title is the node's **slot**. Variants of one step share a title, so `# Opening {opener=warm}` and `# Opening {opener=cold}` both fill `#opening`.
 - Node id = slot + sorted tag set. Two nodes with the same id are an error.
@@ -27,7 +28,7 @@ Hi, this is **Sam** from …
 - A node unreachable from every root is an error.
 
 ## Labels
-- A line `[name]: <oklch(L C H)> "description"` before the first heading defines a label: a link reference definition, so it renders as nothing elsewhere. `name` is `[\w-]+`; the description is optional.
+- A line `[name]: <oklch(L C H)> "description"` outside any section defines a label: a link reference definition, so it renders as nothing elsewhere. `name` is `[\w-]+`; the description is optional.
 - `.name` in a heading's `{…}` attaches the label. Labels annotate only: they change neither id, slot nor visibility.
 - Defining a label twice, attaching an undefined one, or attaching one twice is an error.
 

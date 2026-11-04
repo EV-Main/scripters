@@ -70,6 +70,32 @@ test('every heading level starts a node; seven `#` are body', () => {
 	);
 });
 
+test('a heading starting with `-` ends the section and starts nothing', () => {
+	checkParse(
+		`
+		# - Labels
+		[l]: <oklch(0 0 0)>
+		# A {.l}
+		- [x](#b)
+		<div lang="ru">
+		## - not a title
+		</div>
+		# -Group
+		## B
+		# - Notes
+		stray
+		`,
+		`
+		label l oklch(0 0 0) ""
+		node a "A" root .l body=""
+		node b "B" body=""
+		edge a -[x]-> b
+		langs: ru
+		error L11: text outside any card
+		`,
+	);
+});
+
 test('canonical id sorts tag keys', () => {
 	checkParse(
 		`
@@ -99,7 +125,7 @@ test('parse errors', () => {
 		`,
 		`
 		node a "A" root body=""
-		error L1: text before the first heading
+		error L1: text outside any card
 		`,
 	);
 	checkParse(
@@ -176,7 +202,7 @@ test('labels are defined before the first heading and attached with `.name`', ()
 		label hot oklch(0.6 0.2 25) ""
 		node a "A" root .warm .hot body=""
 		error L2: label \`hot\` defined twice
-		error L3: text before the first heading
+		error L3: text outside any card
 		error L4: label \`.hot\` given twice
 		error L4: unknown label \`.warm\`
 		`,
