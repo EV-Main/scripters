@@ -10,12 +10,12 @@ include = [
     "src/main.rs",
     "LICENSE",
     "README.md",
+    "web/model.js",
+    "web/translate.js",
     "web/icon.svg",
     "web/style.css",
     "web/vendor/marked.min.js",
     "web/vendor/dagre.min.js",
-    "web/model.js",
-    "web/translate.js",
     "web/place.js",
     "web/merge.js",
     "web/layout.js",
@@ -33,8 +33,8 @@ bin-dir = "{ bin }{ binary-ext }"
 pkg-fmt = "tgz"
 
 [dependencies]
-ask_llm = { version = "^3.11", default-features = false }
-clap = { version = "^4.5.4", features = ["derive"] }
+ask_llm = { version = "^3", default-features = false }
+clap = { version = "^4.6.7", features = ["derive"] }
 color-eyre = "^0.6.5"
 futures = "^0.3.34"
 rquickjs = "^0.14.0"
@@ -48,11 +48,11 @@ v_fixtures = "^0.3.4"
 
 [lints.clippy]
 # Stable
-float_cmp = "allow" # is bad for `==` direct comparisons, but `<` and `>` should be allowed
-len_zero = "allow" # `.empty()` is O(1) but on &str only
+float_cmp = "allow"                 # is bad for `==` direct comparisons, but `<` and `>` should be allowed
+len_zero = "allow"                  # `.empty()` is O(1) but on &str only
 undocumented_unsafe_blocks = "warn"
 tabs_in_doc_comments = "allow"
-doc_lazy_continuation = "allow" # tries to make me add a newline after a list in docs
+doc_lazy_continuation = "allow"     # tries to make me add a newline after a list in docs
 
 # Questionable
 # const fns, so actually more performant

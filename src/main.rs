@@ -106,7 +106,7 @@ fn main() -> Result<()> {
 
 fn translate(script: &Script, from: &str, to: &str, quality: ask_llm::Model) -> Result<()> {
 	let md = script.read()?;
-	let format = Format::new()?;
+	let format = Format::try_new()?;
 	let texts: Vec<String> = serde_json::from_value(format.call("bits", serde_json::json!([md, from, to]))?)?;
 	eprintln!("translating {} texts from `{from}` to `{to}`", texts.len());
 	let client = ask_llm::Client::new(ask_llm::config::AppConfig::default()).model(quality);
@@ -192,7 +192,7 @@ fn review(script: &Script, to: &str, conflicts: &[serde_json::Value]) -> Result<
 struct Format(rquickjs::Context);
 
 impl Format {
-	fn new() -> Result<Self> {
+	fn try_new() -> Result<Self> {
 		let context = rquickjs::Context::full(&rquickjs::Runtime::new()?)?;
 		context.with(|ctx| -> Result<()> {
 			for src in [include_str!("../web/model.js"), include_str!("../web/translate.js")] {

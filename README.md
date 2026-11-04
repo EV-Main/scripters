@@ -33,7 +33,7 @@ nix profile install github:ev-main/scripters # substituted from valeratrades.cac
 
 ## Usage
 ```sh
-scripters build script.scr.md --direction vertical   # or horizontal; writes /tmp/scripters/script.html (-o to override); -l bfs ranks each card below its earliest caller instead of its latest
+scripters build script.scr.md --direction vertical   # or horizontal; writes /tmp/scripters/script.html (-o to override); -l dfs ranks each card below its latest caller instead of its earliest
 scripters watch script.scr.md   # serves it on localhost and opens it; the page reloads on each save of the md, its Ctrl+S writes the md
 scripters translate script.scr.md --from en --to es   # fills the `es` blocks from the `en` ones with an LLM (--quality fast|medium|slow|…); changes to existing ones go through `cargo insta review`
 ```
