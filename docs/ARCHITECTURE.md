@@ -2,13 +2,13 @@
 A call script is a markdown file; the caller follows it as a clickable conversation graph in one offline html file, and edits it in place.
 
 ```
-script.call.md ──bundle──► script.html (md embedded verbatim + inlined web/ assets)
-                              └─ runtime: md ─parse─► graph ─filter(selection)─► layout ─► cards + edges
+script.scr.md ──bundle──► script.html (md embedded verbatim + inlined web/ assets)
+                             └─ runtime: md ─parse─► graph ─filter(selection)─► layout ─► cards + edges
 any edit ─► splice into md ─► reparse ─► rerender
 save     ─► same html with the embedded md replaced
 
-watch: script.call.md ─bundle per request─► http://127.0.0.1 page ─poll /version─► reload
-       page Ctrl+S ─PUT md─► script.call.md   (refused if it changed since the page loaded)
+watch: script.scr.md ─bundle per request─► http://127.0.0.1 page ─poll /version─► reload
+       page Ctrl+S ─PUT md─► script.scr.md   (refused if it changed since the page loaded)
 ```
 
 - `src/`: the bundler, and the `watch` server.

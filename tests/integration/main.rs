@@ -29,7 +29,7 @@ fn build(test: &str, flags: &[&str], md: &str) -> Result<String, String> {
 
 #[test]
 fn demo_is_self_contained() {
-	let md = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.call.md")).unwrap();
+	let md = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.scr.md")).unwrap();
 	let html = build("demo", &[], &md).unwrap();
 	assert!(html.contains(&md), "markdown is embedded verbatim");
 	for attr in ["src=", "href="] {
@@ -164,7 +164,7 @@ button('.md').click();
 
 #[test]
 fn md_save_round_trips() {
-	let demo = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.call.md")).unwrap();
+	let demo = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/demo.scr.md")).unwrap();
 	check_save(&[], &demo, "", &demo);
 	let md = r#"[hot]: <oklch(0.62 0.19 25)> "Ready"
 [k=v]: #

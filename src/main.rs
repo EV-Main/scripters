@@ -51,7 +51,7 @@ struct Script {
 impl Script {
 	fn title(&self) -> Result<String> {
 		let stem = self.md.file_stem().ok_or_else(|| eyre!("{} has no file name", self.md.display()))?.to_string_lossy();
-		Ok(stem.trim_suffix(".call").to_owned())
+		Ok(stem.trim_suffix(".scr").to_owned())
 	}
 
 	fn read(&self) -> Result<String> {

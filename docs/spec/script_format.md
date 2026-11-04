@@ -1,5 +1,5 @@
 # Script format
-A script is a `<name>.call.md` file; its page is titled `<name>`.
+A script is a `<name>.scr.md` file; its page is titled `<name>`.
 
 ```md
 [hot]: <oklch(0.62 0.19 25)> "Ready to buy"

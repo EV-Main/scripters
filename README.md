@@ -13,7 +13,7 @@ Turns a markdown sales call script into one self-contained HTML file: each `# ` 
 
 ![a call walked through the demo script](docs/.readme_assets/assets/walkthrough.webp)
 
-[`examples/demo.call.md`](examples/demo.call.md), walked: A/B variants picked in the top bar, responses clicked through to a booked call, then a card's markdown edited in place. For the real thing, [play with it](https://ev-main.github.io/scripters/).
+[`examples/demo.scr.md`](examples/demo.scr.md), walked: A/B variants picked in the top bar, responses clicked through to a booked call, then a card's markdown edited in place. For the real thing, [play with it](https://ev-main.github.io/scripters/).
 // redraw it yourself: `nix run .#film`.
 <!-- markdownlint-disable -->
 <details>
@@ -33,12 +33,12 @@ nix profile install github:ev-main/scripters # substituted from valeratrades.cac
 
 ## Usage
 ```sh
-scripters build script.call.md --direction vertical   # or horizontal; writes /tmp/scripters/script.html (-o to override); --bfs ranks each card below its earliest caller
-scripters watch script.call.md   # serves it on localhost and opens it; the page reloads on each save of the md, its Ctrl+S writes the md
+scripters build script.scr.md --direction vertical   # or horizontal; writes /tmp/scripters/script.html (-o to override); --bfs ranks each card below its earliest caller
+scripters watch script.scr.md   # serves it on localhost and opens it; the page reloads on each save of the md, its Ctrl+S writes the md
 ```
-Open the html in any browser. Click cards or responses to follow the call, pick variants and layout spacing in the top bar, zoom with − / + (`-`, `+` or `=`), Ctrl+scroll or a pinch, double-click a card to edit its markdown (Ctrl+Enter commits, Esc cancels), `n` starts a new call: the view jumps to each card you click until Clear (Esc outside an edit) ends the call and clears the walked path; `c` scrolls back to the start without touching the call; × or Backspace deletes the current card, Labels (`l`) in the top bar defines labels that cards carry. Ctrl+S overwrites the opened file (Chromium asks for it once; under `watch`, the md), Export ▾ (`e`) downloads a copy as .html or .call.md; hovering a bar control shows its hint and keys; ☾/☀ switches theme. Format: [docs/spec/script_format.md](docs/spec/script_format.md).
+Open the html in any browser. Click cards or responses to follow the call, pick variants and layout spacing in the top bar, zoom with − / + (`-`, `+` or `=`), Ctrl+scroll or a pinch, double-click a card to edit its markdown (Ctrl+Enter commits, Esc cancels), `n` starts a new call: the view jumps to each card you click until Clear (Esc outside an edit) ends the call and clears the walked path; `c` scrolls back to the start without touching the call; × or Backspace deletes the current card, Labels (`l`) in the top bar defines labels that cards carry. Ctrl+S overwrites the opened file (Chromium asks for it once; under `watch`, the md), Export ▾ (`e`) downloads a copy as .html or .scr.md; hovering a bar control shows its hint and keys; ☾/☀ switches theme. Format: [docs/spec/script_format.md](docs/spec/script_format.md).
 
-`nix run . -- [script.call.md] [--direction horizontal]` watches the script (the demo by default).
+`nix run . -- [script.scr.md] [--direction horizontal]` watches the script (the demo by default).
 
 
 
