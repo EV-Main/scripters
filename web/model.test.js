@@ -7,7 +7,7 @@ const dedent = s => s.replace(/^\n/, '').replace(/^\t+/gm, '');
 function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
-		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')} body=${JSON.stringify(n.body.map(l => (l.lang ? `{${l.lang}}${l.text}` : l.text)).join('\n').trim())}`),
+		...graph.nodes.map(n => `node ${n.id} "${n.title}"${n.root ? ' root' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => (l.lang ? `{${l.lang}}${l.text}` : l.text)).join('\n').trim())}`),
 		...graph.edges.map(e => `edge ${e.from} -[${e.label}]-> ${e.to}${e.lang ? ` lang=${e.lang}` : ''}`),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
@@ -181,6 +181,7 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		# A
 		<div lang="ru">
 
+		# А ## 
 		Привет
 		- [Да](#b)
 		</div>
@@ -194,7 +195,7 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		# B
 		`,
 		`
-		node a "A" root body="{ru}\\n{ru}Привет\\n{en}Hi\\n\\n> both"
+		node a "A" root ru="А" body="{ru}\\n{ru}Привет\\n{en}Hi\\n\\n> both"
 		node b "B" body=""
 		edge a -[Да]-> b lang=ru
 		edge a -[Yes]-> b lang=en
@@ -209,14 +210,23 @@ test('`<div lang>` scopes body lines and responses to a language', () => {
 		<div lang="en">
 		</div>
 		<div lang="de">
+		# A1
+		# A2 {k=v .l}
+		</div>
+		<div lang="de">
+		# A3
+		</div>
+		<div lang="fr">
 		# B
 		`,
 		`
-		node a "A" root body=""
-		node b "B" root body=""
-		langs: ru en de
+		node a "A" root de="A1" fr="B" body=""
+		langs: ru en de fr
 		error L3: \`<div lang>\` inside another
-		error L5: \`<div lang="de">\` not closed before the next heading
+		error L7: tags and labels go on the main heading
+		error L7: a second \`de\` title
+		error L10: a second \`de\` title
+		error L12: \`<div lang="fr">\` not closed
 		`,
 	);
 });

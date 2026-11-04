@@ -14,6 +14,7 @@ Hi, this is **Sam** from Brightline. Did I catch you at an okay time?
 </div>
 <div lang="ru">
 
+# Вступление
 Здравствуйте, это **Сэм** из Brightline. Удобно сейчас говорить?
 
 - [Есть минута](#opening)
@@ -23,6 +24,7 @@ Hi, this is **Sam** from Brightline. Did I catch you at an okay time?
 </div>
 <div lang="fr">
 
+# Présentation
 Bonjour, ici **Sam** de Brightline. Je vous appelle à un bon moment ?
 
 - [A une minute](#opening)
@@ -32,6 +34,7 @@ Bonjour, ici **Sam** de Brightline. Je vous appelle à un bon moment ?
 </div>
 <div lang="de">
 
+# Einleitung
 Hallo, hier ist **Sam** von Brightline. Passt es Ihnen gerade?
 
 - [Hat kurz Zeit](#opening)

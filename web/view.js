@@ -100,7 +100,7 @@ function render() {
 			head.append(p);
 		}
 		head.append(labelPicker(n));
-		head.append(el('h2', '', marked.parseInline(n.title)));
+		head.append(el('h2', '', marked.parseInline(n.titles[sel.lang] ?? n.title)));
 		const del = el('button', 'delete', '×');
 		del.title = 'delete card (select, then Backspace)';
 		del.addEventListener('click', e => {

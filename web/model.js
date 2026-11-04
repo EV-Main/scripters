@@ -16,7 +16,6 @@ function parse(md) {
 	let fence = null;
 	let node = null;
 	let lang = null; // the open `<div lang>`: {code, line}
-	const unclosed = () => lang && errors.push({ line: lang.line, msg: `\`<div lang="${lang.code}">\` not closed before the next heading` });
 	lines.forEach((line, i) => {
 		const lineNo = i + 1;
 		const f = /^ {0,3}(`{3,}|~{3,})/.exec(line.text);
@@ -26,9 +25,14 @@ function parse(md) {
 			fence = f[1];
 		} else {
 			const h = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/d.exec(line.text);
+			if (h && lang) {
+				const t = heading(h[1] ?? '', 0, line.start, lineNo, errors);
+				if (Object.keys(t.tags).length || t.labels.length) errors.push({ line: lineNo, msg: 'tags and labels go on the main heading' });
+				if (lang.code in node.titles) errors.push({ line: lineNo, msg: `a second \`${lang.code}\` title` });
+				else node.titles[lang.code] = t.title;
+				return;
+			}
 			if (h) {
-				unclosed();
-				lang = null;
 				if (node) node.end = line.start;
 				node = heading(h[1] ?? '', line.start + (h.indices[1]?.[0] ?? line.text.length), line.start, lineNo, errors);
 				nodes.push(node);
@@ -61,7 +65,7 @@ function parse(md) {
 		if (node) node.body.push({ text: line.text, lang: lang?.code ?? null });
 		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text before the first `# ` heading' });
 	});
-	unclosed();
+	if (lang) errors.push({ line: lang.line, msg: `\`<div lang="${lang.code}">\` not closed` });
 	if (node) node.end = md.length;
 	if (nodes.length === 0 && errors.length === 0) errors.push({ line: 1, msg: 'no `# ` headings' });
 
@@ -133,7 +137,7 @@ function heading(raw, at, start, line, errors) {
 	const slot = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
 	const keys = Object.keys(tags).sort();
 	const id = keys.length ? `${slot}{${keys.map(k => `${k}=${tags[k]}`).join(' ')}}` : slot;
-	return { id, slot, title, tags, labels, attrs, line, start, end: null, body: [], responses: [] };
+	return { id, slot, title, titles: {}, tags, labels, attrs, line, start, end: null, body: [], responses: [] };
 }
 
 // selection.variants: {dim: value}; a dim without a chosen value admits every variant. No selection.lang admits every language
