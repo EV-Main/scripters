@@ -1,6 +1,7 @@
 [objection]: <oklch(0.62 0.19 25)> "They push back"
 [win]: <oklch(0.62 0.17 150)> "The call ends well"
 [rework]: <oklch(0.86 0.09 85)> "Wording needs another pass"
+[lang="en"]: #
 
 ---
 

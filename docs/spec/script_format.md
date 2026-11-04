@@ -50,7 +50,7 @@ Hi, this is **Sam** from …
 
 ## Saving
 Ctrl+S and Save ▾ .html / .md write the md as it is, except:
-- If it has marks, they follow the current selection: a changed one is rewritten in place, one for a dim no longer chosen is dropped, new ones go after the last mark. Save ▾ selection adds the marks after the labels, or removes them all.
+- Marks follow the current selection, one per chosen dim and one for the language: a changed one is rewritten in place, one for a dim no longer chosen is dropped, new ones go after the last mark, or after the labels if there is none.
 - If anything precedes the first heading, a `---` line follows it, unless the last such line already is one.
 
 ## Editing

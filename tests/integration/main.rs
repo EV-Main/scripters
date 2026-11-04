@@ -155,7 +155,9 @@ button('.md').click();
 	std::fs::remove_dir_all(&dir).unwrap();
 	assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
 	let dom = String::from_utf8(out.stdout).unwrap();
-	let (_, rest) = dom.split_once(r#"<script type="text/plain" id="saved">"#).unwrap_or_else(|| panic!("the page never saved:\n{dom}"));
+	let (_, rest) = dom
+		.split_once(r#"<script type="text/plain" id="saved">"#)
+		.unwrap_or_else(|| panic!("the page never saved:\n{dom}"));
 	assert_eq!(rest.split_once("</script>").unwrap().0, expected);
 }
 
@@ -200,11 +202,14 @@ fn md_save_ends_the_preamble_with_a_rule() {
 }
 
 #[test]
-fn md_save_marks_the_selection_once_pinned() {
+fn md_save_marks_the_selection() {
 	let md = "# A {k=v}\n# A {k=w}\n";
-	let choose = "const s = document.querySelector('#bar select'); s.value = 'w'; s.dispatchEvent(new Event('change'));";
-	check_save(md, choose, md);
-	check_save(md, &format!("{choose} button('selection').click();"), "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
-	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", choose, "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
-	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", "button('✓ selection').click();", "\n---\n\n# A {k=v}\n# A {k=w}\n");
+	let choose = |v: &str| format!("const s = document.querySelector('#bar select'); s.value = '{v}'; s.dispatchEvent(new Event('change'));");
+	check_save(md, "", md);
+	check_save(md, &choose("w"), "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
+	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", &choose("w"), "[k=w]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n");
+	check_save("[k=v]: #\n\n---\n\n# A {k=v}\n# A {k=w}\n", &choose("all"), "\n---\n\n# A {k=v}\n# A {k=w}\n");
+	let langs = "# A\n<div lang=\"en\">\nhi\n</div>\n<div lang=\"ru\">\nпривет\n</div>\n";
+	check_save(langs, "", &format!("[lang=\"en\"]: #\n\n---\n\n{langs}"));
+	check_save(&format!("[l]: <oklch(0 0 0)>\n{md}"), &choose("v"), &format!("[l]: <oklch(0 0 0)>\n[k=v]: #\n\n---\n\n{md}"));
 }

@@ -300,9 +300,6 @@ function renderBar() {
 	const items = el('div', 'items');
 	button('.html', 'this page, with the current script', [], () => download(`${document.title}.html`, html(stamped()), 'text/html'), items);
 	button('.md', 'the script alone', [], () => download(`${document.title}.md`, stamped(), 'text/markdown'), items);
-	const pinned = graph.marks.length > 0;
-	const pin = () => assert(!commit(pinned ? splice(graph.marks.map(m => ({ start: m.start, end: m.end, text: '' }))) : stamped(true)), 'pinning broke the document');
-	button(pinned ? '✓ selection' : 'selection', 'mark the chosen variants and language at the top of the md, kept current by every save', [], pin, items).disabled = !pinned && (graph.errors.length || (!Object.keys(sel.variants).length && !sel.lang));
 	save.append(items);
 	bar.append(save);
 	button(theme === 'dark' ? '☀' : '☾', 'theme', [], () => {
@@ -658,8 +655,8 @@ function download(name, text, type) {
 	a.click();
 }
 
-// the md as saved: its selection marks, if it keeps any (or `pin`), follow the selection, and a `---` ends a nonempty preamble
-function stamped(pin = false) {
+// the md as saved: its selection marks follow the selection, and a `---` ends a nonempty preamble
+function stamped() {
 	if (graph.errors.length) return md; // nothing to stamp against; the broken md saves as it is
 	const want = new Map([...Object.keys(graph.dims).filter(k => k in sel.variants).map(k => [k, sel.variants[k]]), ...(sel.lang ? [[null, sel.lang]] : [])]);
 	const line = (dim, value) => (dim === null ? `[lang="${value}"]: #\n` : `[${dim}=${value}]: #\n`);
@@ -669,7 +666,7 @@ function stamped(pin = false) {
 		return value === m.value ? [] : [{ start: m.start, end: m.end, text: value === undefined ? '' : line(m.dim, value) }];
 	});
 	const at = graph.marks.at(-1)?.end ?? graph.labels.at(-1)?.end ?? 0;
-	if (graph.marks.length || pin) edits.push({ start: at, end: at, text: [...want].map(([d, v]) => line(d, v)).join('') });
+	edits.push({ start: at, end: at, text: [...want].map(([d, v]) => line(d, v)).join('') });
 	const next = splice(edits);
 	const g = parse(next);
 	assert(!g.errors.length, `stamping broke the document: ${g.errors.map(e => e.msg).join('; ')}`);
