@@ -1,7 +1,7 @@
 cargo-features = ["codegen-backend"]
 [package]
 name = "scripters"
-version = "0.2.9"
+version = "0.2.10"
 edition = "2024"
 description = "Call scripts as markdown, followed as a clickable conversation graph in one offline html file"
 license = "BlueOak-1.0.0"
