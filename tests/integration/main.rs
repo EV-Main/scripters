@@ -337,10 +337,12 @@ fn watch_page_edits_merge_with_the_md_saved_elsewhere() {
 }
 
 #[test]
-fn transcription_shows_under_the_lines_of_blocks_unchanged_since_their_transcription() {
+fn a_line_transcribed_since_its_block_last_changed_shows_its_ipa_on_hover() {
 	let md = r#"# A
 <div lang="en">
-Hi
+## Hello
+Hi **there**
+- <div k="v">Yes</div><div k="w">No</div> sir
 </div>
 <div lang="ru">
 Привет
@@ -348,19 +350,18 @@ Hi
 
 <details><summary>transcriptions</summary>
 
-{"lang":"en","hash":"c84ac2228f7ca","ipa":{"Hi":"haɪ"}}
-{"lang":"ru","hash":"0","ipa":{"Привет":"prʲivʲˈet"}}
+{"lang":"en","hash":"fd536e66f9251","ipa":["həlˈəʊ","hˈaɪ ðˈeə",["jˈɛs sˈɜː","nˈəʊ sˈɜː"]]}
+{"lang":"ru","hash":"0","ipa":["prʲivʲˈet"]}
 
 </details>
 "#;
 	let drive = r#"
-const pick = (dim, v) => { const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === dim).querySelector('select'); s.value = v; s.dispatchEvent(new Event('change')); };
-const ipa = () => [...document.querySelectorAll('#canvas .ipa')].map(e => e.textContent).join();
-if (ipa() !== '') throw new Error('transcription starts off');
-pick('transcription', 'on');
-if (ipa() !== 'haɪ') throw new Error(`en: ${ipa()}`);
-pick('language', 'ru');
-if (ipa() !== '') throw new Error(`the ru block changed since: ${ipa()}`);
+const hints = () => [...document.querySelectorAll('#canvas .said')].map(e => `${e.textContent}=${e.title}`).join('|');
+const titleHint = () => document.querySelector('#canvas h2').title;
+if (hints() !== 'Hi there=hˈaɪ ðˈeə|Yes sir=jˈɛs sˈɜː|No sir=nˈəʊ sˈɜː') throw new Error(`en: ${hints()}`);
+if (titleHint() !== 'həlˈəʊ') throw new Error(`en title: ${titleHint()}`);
+const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'language').querySelector('select'); s.value = 'ru'; s.dispatchEvent(new Event('change'));
+if (hints() !== '') throw new Error(`the ru block changed since: ${hints()}`);
 "#;
 	check_save(&[], md, drive, &format!("[lang=\"ru\"]: #\n[layout=\"dfs\"]: #\n\n---\n\n{md}"));
 }

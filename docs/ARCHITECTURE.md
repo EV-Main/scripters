@@ -91,12 +91,12 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 - An existing `to` block the translation would change is shown by `cargo insta review`: accepted ones are overwritten, the rest stay. The md is written once, at the end, and only if every call answered and the result parses.
 
 ### Transcriptions
-`scripters translate transcribe <md> --langs <code>,<code>…` caches espeak-ng's IPA of the named languages' blocks in the md, in place.
+`scripters translate transcribe <md> --langs <code>,<code>…` caches espeak-ng's IPA of each line of the named languages' blocks in the md, in place.
 - A block is one `<div lang>` scope of a section, keyed by its language and a digest of its text from `<div` to `</div>`: editing it leaves it untranscribed.
-- Its body lines and title, outside code fences, are read one at a time, with markdown, list, quote and heading markers dropped; a line with no letters is not read. Responses are not read.
-- The cache is a block `<details><summary>transcriptions</summary>` … `</details>` outside every scope; it ends the section before it. Each non-blank line in it is the json `{"lang", "hash", "ipa": {line → ipa}}` of one block. A second one, a line of another shape, or two for one language and digest is an error.
+- Its body lines and title, outside code fences, are read one at a time, with markdown, list, quote and heading markers dropped; a line with no letters is not read, nor are responses. A line split by inline scopes is read once per combination.
+- The cache is a block `<details><summary>transcriptions</summary>` … `</details>` outside every scope; it ends the section before it. Each non-blank line in it is the json `{"lang", "hash", "ipa"}` of one block, `ipa` holding per line after its `<div lang>` the IPA, null, or for a split line an array of those per combination. A second cache, a line of another shape, or two for one language and digest is an error.
 - Only blocks without a transcription of their text are read. The cache is rewritten at the bottom, in md order, keeping one entry per current block: an edited or deleted block's goes.
-- A page whose cache has entries offers a `transcription` toggle; while on, each line and title of the chosen language with a transcription of its block shows its IPA under it.
+- On the page, hovering a line or title of a block with a transcription of its text shows the line's IPA.
 
 ### Marks
 - A line `[dim=value]: #`, `[lang="code"]: #` or `[layout="bfs"]: #` outside any section marks a chosen variant value, the chosen language, or the layout: a link reference definition, so it renders as nothing elsewhere.
@@ -124,7 +124,7 @@ Every response leads one rank or more down, except one in each loop, which point
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside any scope, or at the end of its section if it has none.
 
 ### Selection
-`{ variants: {dim → value}, lang, layout, transcribe: bool, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
+`{ variants: {dim → value}, lang, layout, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
 
 - A node is **visible** iff it agrees with the selection and is reachable from the root or a stray along responses and nodes that agree with it.
 - Cards show only the lines that agree with the selection. Lines and responses of a dimension with no value chosen show framed with their variant. Unlike variants, a language is always chosen while the document has any.

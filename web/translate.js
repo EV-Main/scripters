@@ -1,13 +1,12 @@
 // Fills one language of a script from another, one bit of prose at a time, and caches transcriptions: docs/ARCHITECTURE.md#translating
 
-if (typeof module !== 'undefined') var { TRANSCRIPTIONS, parse } = require('./model.js');
+if (typeof module !== 'undefined') var { TRANSCRIPTIONS, PREFIX, parse } = require('./model.js');
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const SCOPE = /^ {0,3}(?:<div [\w-]+="[\w-]+">|<\/div>)[ \t]*$/;
 const RULE = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
 const HEADING = /^ {0,3}#{1,6}(?:[ \t]|$)/;
 const RESPONSE = /^( {0,3}(?:[-*+]|\d+[.)])[ \t]+\[)([^\]]*)(\]\(#[^)\s]+\)[ \t]*)$/;
-const PREFIX = /^\s*((?:>\s*)*)([-*+]\s+|\d+[.)]\s+|#{1,6}\s+)?/;
 
 const split = s => s.replace(/\r?\n$/, '').split(/\r?\n/);
 const depth = quote => quote.split('>').length;
@@ -151,34 +150,44 @@ function parsed(md) {
 	return graph;
 }
 
-// what espeak-ng is to read of each `langs` block lacking a transcription of its text: {lang → {line → its prose}}
+// what espeak-ng is to read of a line: its prose, or null
+function prose(text) {
+	const p = text
+		.replace(PREFIX, '')
+		.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+		.replace(/<[^>]*>/g, '')
+		.replace(/[*_`~]/g, '')
+		.trim();
+	return /\p{L}/u.test(p) ? p : null;
+}
+
+// the prose espeak-ng is to read of the `langs` blocks lacking a transcription of their text: {lang → [prose]}
 function untranscribed(md, langs) {
 	const graph = parsed(md);
 	for (const l of langs) if (!graph.langs.includes(l)) throw new Error(`no \`<div lang="${l}">\``);
-	const out = Object.fromEntries(langs.map(l => [l, {}]));
-	for (const b of graph.nodes.flatMap(n => n.langs)) {
-		if (b.ipa || !langs.includes(b.lang)) continue;
-		for (const text of b.texts) {
-			const prose = text
-				.replace(PREFIX, '')
-				.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-				.replace(/<[^>]*>/g, '')
-				.replace(/[*_`~]/g, '')
-				.trim();
-			if (/\p{L}/u.test(prose)) out[b.lang][text] = prose;
-		}
-	}
-	return out;
+	const out = Object.fromEntries(langs.map(l => [l, new Set()]));
+	for (const b of graph.nodes.flatMap(n => n.langs)) if (!b.ipa && langs.includes(b.lang)) for (const r of b.reads) if (prose(r.text) !== null) out[b.lang].add(prose(r.text));
+	return Object.fromEntries(Object.entries(out).map(([l, ps]) => [l, [...ps]]));
 }
 
-// `ipa`: {lang → {line → ipa}} for every one of `untranscribed`; the transcriptions block keeps one entry per current block, in md order
+// `ipa`: {lang → {prose → ipa}} for every one of `untranscribed`; the transcriptions block keeps one entry per current block, in md order
 function transcribe(md, langs, ipa) {
 	const graph = parsed(md);
 	const entries = [];
 	for (const b of graph.nodes.flatMap(n => n.langs)) {
 		if (entries.some(e => e.lang === b.lang && e.hash === b.hash)) continue;
 		if (b.ipa) entries.push({ lang: b.lang, hash: b.hash, ipa: b.ipa });
-		else if (langs.includes(b.lang)) entries.push({ lang: b.lang, hash: b.hash, ipa: Object.fromEntries(b.texts.filter(t => Object.hasOwn(ipa[b.lang], t)).map(t => [t, ipa[b.lang][t]])) });
+		if (b.ipa || !langs.includes(b.lang)) continue;
+		const lines = []; // per line after the `<div lang>` one
+		for (const r of b.reads) {
+			const p = prose(r.text);
+			if (p === null) continue;
+			if (!Object.hasOwn(ipa[b.lang], p)) throw new Error(`no transcription of ${JSON.stringify(p)}`);
+			const i = r.line - b.line - 1;
+			if (r.combo === null) lines[i] = ipa[b.lang][p];
+			else (lines[i] ??= [])[r.combo] = ipa[b.lang][p];
+		}
+		entries.push({ lang: b.lang, hash: b.hash, ipa: Array.from(lines, v => (Array.isArray(v) ? Array.from(v, x => x ?? null) : (v ?? null))) });
 	}
 	const block = entries.length ? [TRANSCRIPTIONS, '', ...entries.map(e => JSON.stringify(e)), '', '</details>', ''].join('\n') : '';
 	const t = graph.transcriptions;

@@ -361,8 +361,8 @@ function checkTranscribe(md, langs, expected) {
 	let actual;
 	try {
 		const asked = untranscribed(md, langs);
-		const ipa = Object.fromEntries(Object.entries(asked).map(([l, lines]) => [l, Object.fromEntries(Object.entries(lines).map(([line, prose]) => [line, `/${prose}/`]))]));
-		actual = `${Object.entries(asked).flatMap(([l, lines]) => Object.values(lines).map(p => `asked ${l}: ${p}`)).join('\n')}\n${transcribe(md, langs, ipa)}`;
+		const ipa = Object.fromEntries(Object.entries(asked).map(([l, prose]) => [l, Object.fromEntries(prose.map(p => [p, `/${p}/`]))]));
+		actual = `${Object.entries(asked).flatMap(([l, prose]) => prose.map(p => `asked ${l}: ${p}`)).join('\n')}\n${transcribe(md, langs, ipa)}`;
 	} catch (e) {
 		actual = `error: ${e.message}`;
 	}
@@ -390,7 +390,7 @@ const SCRIPT = `
 	</div>
 	`;
 
-test('a language\'s blocks get their prose read once, cached at the bottom by language and text', () => {
+test('each line of a language\'s blocks is read, its ipa cached at the bottom by block and line', () => {
 	checkTranscribe(
 		SCRIPT,
 		['en'],
@@ -422,8 +422,8 @@ test('a language\'s blocks get their prose read once, cached at the bottom by la
 
 		<details><summary>transcriptions</summary>
 
-		{"lang":"en","hash":"244612c835b30","ipa":{"Hello":"/Hello/","Hi, this is **Sam** from [Acme](https://acme.io).":"/Hi, this is Sam from Acme./","- Point one":"/Point one/","- Item one":"/Item one/","> quoted":"/quoted/"}}
-		{"lang":"en","hash":"1db176de5cee60","ipa":{"Bye":"/Bye/"}}
+		{"lang":"en","hash":"244612c835b30","ipa":["/Hello/","/Hi, this is Sam from Acme./",["/Point one/","/Item one/"],"/quoted/"]}
+		{"lang":"en","hash":"1db176de5cee60","ipa":["/Bye/"]}
 
 		</details>
 		`,
@@ -431,7 +431,7 @@ test('a language\'s blocks get their prose read once, cached at the bottom by la
 });
 
 test('only blocks changed since their transcription are read again; a changed block\'s old one goes', () => {
-	const once = transcribe(dedent(SCRIPT), ['en', 'ru'], { en: { Hello: 'h', Bye: 'b' }, ru: { Привет: 'p' } });
+	const once = transcribe(dedent(SCRIPT), ['en', 'ru'], { en: { Hello: 'h', 'Hi, this is Sam from Acme.': 'hi', 'Point one': 'p', 'Item one': 'i', quoted: 'q', Bye: 'b' }, ru: { Привет: 'p' } });
 	checkTranscribe(
 		once.replace('Bye', 'Bye now'),
 		['en'],
@@ -458,9 +458,9 @@ test('only blocks changed since their transcription are read again; a changed bl
 
 		<details><summary>transcriptions</summary>
 
-		{"lang":"en","hash":"244612c835b30","ipa":{"Hello":"h"}}
-		{"lang":"ru","hash":"10627665689db3","ipa":{"Привет":"p"}}
-		{"lang":"en","hash":"6c853f2a72dd8","ipa":{"Bye now":"/Bye now/"}}
+		{"lang":"en","hash":"244612c835b30","ipa":["h","hi",["p","i"],"q"]}
+		{"lang":"ru","hash":"10627665689db3","ipa":["p"]}
+		{"lang":"en","hash":"6c853f2a72dd8","ipa":["/Bye now/"]}
 
 		</details>
 		`,

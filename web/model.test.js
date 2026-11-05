@@ -644,18 +644,18 @@ test('a transcriptions block ends the section before it and holds one json line 
 		Hi
 		<details><summary>transcriptions</summary>
 
-		{"lang":"en","hash":"1","ipa":{"Hi":"haɪ"}}
-		{"lang":"en","hash":"1","ipa":{}}
+		{"lang":"en","hash":"1","ipa":[null,"haɪ",["a",null]]}
+		{"lang":"en","hash":"1","ipa":[]}
 		not json
-		{"lang":"en","hash":"2","ipa":{"Hi":1}}
+		{"lang":"en","hash":"2","ipa":{"Hi":"haɪ"}}
 		</details>
 		<details><summary>transcriptions</summary>
 		`,
 		`
 		node a "A" body="Hi"
 		error L6: a second \`en\` transcription of one block
-		error L7: a transcription is a {"lang", "hash", "ipa": {text → ipa}} json line
-		error L8: a transcription is a {"lang", "hash", "ipa": {text → ipa}} json line
+		error L7: a transcription is a {"lang", "hash", "ipa": [per line of the block: ipa, null, or [per inline variant: ipa or null]]} json line
+		error L8: a transcription is a {"lang", "hash", "ipa": [per line of the block: ipa, null, or [per inline variant: ipa or null]]} json line
 		error L10: a second transcriptions block
 		error L10: transcriptions block not closed
 		`,

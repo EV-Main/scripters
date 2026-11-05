@@ -51,7 +51,7 @@ enum Command {
 
 #[derive(Subcommand)]
 enum TranslateCommand {
-	/// cache espeak-ng's IPA of each `--langs` block changed since its last transcription at the bottom of the md, in place; the page can show it under the lines
+	/// cache espeak-ng's IPA of each line of the `--langs` blocks changed since their last transcription at the bottom of the md, in place; the page shows it on hovering the line
 	Transcribe {
 		#[command(flatten)]
 		script: Script,
@@ -186,12 +186,13 @@ fn transcribe(script: &Script, langs: &[String]) -> Result<()> {
 	let format = Format::try_new()?;
 	let todo: serde_json::Map<String, serde_json::Value> = serde_json::from_value(format.call("untranscribed", serde_json::json!([md, langs]))?)?;
 	let mut ipa = serde_json::Map::new();
-	for (lang, lines) in todo {
-		let lines = lines.as_object().expect("untranscribed returns {lang → {line → prose}}");
-		eprintln!("transcribing {} `{lang}` lines", lines.len());
+	for (lang, prose) in todo {
+		let prose = prose.as_array().expect("untranscribed returns {lang → [prose]}");
+		eprintln!("transcribing {} `{lang}` lines", prose.len());
 		let mut out = serde_json::Map::new();
-		for (line, prose) in lines {
-			out.insert(line.clone(), espeak(&lang, prose.as_str().expect("prose is a string"))?.into());
+		for p in prose {
+			let p = p.as_str().expect("prose is a string");
+			out.insert(p.to_owned(), espeak(&lang, p)?.into());
 		}
 		ipa.insert(lang, out.into());
 	}

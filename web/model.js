@@ -2,7 +2,9 @@
 
 const LAYOUTS = ['dfs', 'bfs']; // implemented in web/layout.js
 const INLINE = /<div ([\w-]+)="([\w-]+)">(.*?)<\/div>/g;
-var TRANSCRIPTIONS = '<details><summary>transcriptions</summary>'; // var: web/translate.js imports it with `var`, and the CLI evaluates both in one scope
+// var: web/translate.js imports these with `var`, and the CLI evaluates both in one scope
+var TRANSCRIPTIONS = '<details><summary>transcriptions</summary>';
+var PREFIX = /^\s*((?:>\s*)*)([-*+]\s+|\d+[.)]\s+|#{1,6}\s+)?/; // a line's quote, list and heading markers
 
 function parse(md) {
 	const nodes = [];
@@ -35,8 +37,9 @@ function parse(md) {
 				try {
 					e = JSON.parse(line.text);
 				} catch {} // reported below, with what a line must hold
-				const valid = typeof e?.lang === 'string' && typeof e.hash === 'string' && typeof e.ipa === 'object' && e.ipa !== null && Object.values(e.ipa).every(v => typeof v === 'string');
-				if (!valid) errors.push({ line: lineNo, msg: 'a transcription is a {"lang", "hash", "ipa": {text → ipa}} json line' });
+				const ipa = v => v === null || typeof v === 'string';
+				const valid = typeof e?.lang === 'string' && typeof e.hash === 'string' && Array.isArray(e.ipa) && e.ipa.every(v => ipa(v) || (Array.isArray(v) && v.every(ipa)));
+				if (!valid) errors.push({ line: lineNo, msg: 'a transcription is a {"lang", "hash", "ipa": [per line of the block: ipa, null, or [per inline variant: ipa or null]]} json line' });
 				else if (transcriptions.entries.some(o => o.lang === e.lang && o.hash === e.hash)) errors.push({ line: lineNo, msg: `a second \`${e.lang}\` transcription of one block` });
 				else transcriptions.entries.push(e);
 			}
@@ -75,7 +78,9 @@ function parse(md) {
 				if (t.labels.length) errors.push({ line: lineNo, msg: 'labels go on the main heading' });
 				if (lang in node.titles) errors.push({ line: lineNo, msg: `a second \`${lang}\` title` });
 				else node.titles[lang] = t.title;
-				scopes.find(s => s.key === 'lang').texts.push(t.title);
+				const block = scopes.find(s => s.key === 'lang').lang;
+				block.title = lineNo;
+				block.reads.push({ text: t.title, line: lineNo, combo: null });
 				return;
 			}
 			if (h) {
@@ -95,14 +100,14 @@ function parse(md) {
 				if (block && node) node.end = line.start;
 				if (block) node = null;
 				if (scopes.some(s => s.key === key)) errors.push({ line: lineNo, msg: `\`<div ${key}>\` inside another` });
-				scopes.push({ key, value, line: lineNo, start: line.start, block, texts: [] });
+				scopes.push({ key, value, line: lineNo, start: line.start, block, lang: key === 'lang' ? { lang: value, line: lineNo, title: null, reads: [] } : null }); // `lang`: the block's lines web/translate.js reads
 				const values = key === 'lang' ? langs : (dims[key] ??= []);
 				if (!values.includes(value)) values.push(value);
 				return;
 			}
 			if (scopes.length && /^ {0,3}<\/div>[ \t]*$/.test(line.text)) {
 				const s = scopes.pop();
-				if (s.key === 'lang') node.langs.push({ lang: s.value, scope: scope(false), start: s.start, end: line.end, hash: digest(md.slice(s.start, line.end)), texts: s.texts, ipa: null });
+				if (s.key === 'lang') node.langs.push(Object.assign(s.lang, { scope: scope(false), start: s.start, end: line.end, hash: digest(md.slice(s.start, line.end)), ipa: null }));
 				if (s.block && node) {
 					node.end = line.start;
 					node = null;
@@ -135,17 +140,19 @@ function parse(md) {
 				}
 				let combos = [{}];
 				for (const [key, values] of Object.entries(split)) combos = combos.flatMap(c => values.map(v => ({ ...c, [key]: v })));
-				for (const c of combos) {
-					const text = line.text.replace(INLINE, (_, key, value, text) => (c[key] === value ? text : ''));
-					node.body.push({ text, scope: { ...scope(false), ...c } });
-					scopes.find(s => s.key === 'lang')?.texts.push(text);
-				}
+				const lang = scopes.find(s => s.key === 'lang')?.lang ?? null;
+				combos.forEach((c, combo) => {
+					const l = { text: line.text.replace(INLINE, (_, key, value, text) => (c[key] === value ? text : '')), scope: { ...scope(false), ...c }, line: lineNo, lang, combo };
+					node.body.push(l);
+					lang?.reads.push(l);
+				});
 				return;
 			}
 		}
 		if (node) {
-			node.body.push({ text: line.text, scope: scope(false) });
-			if (!fence && !f) scopes.find(s => s.key === 'lang')?.texts.push(line.text); // code is not read aloud
+			const l = { text: line.text, scope: scope(false), line: lineNo, lang: scopes.find(s => s.key === 'lang')?.lang ?? null, combo: null };
+			node.body.push(l);
+			if (!fence && !f) l.lang?.reads.push(l); // code is not read aloud
 		} else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text outside any card' });
 	});
 	for (const s of scopes) errors.push({ line: s.line, msg: `\`<div ${s.key}="${s.value}">\` not closed` });
@@ -252,4 +259,4 @@ function inScope(item, selection) {
 	return Object.entries(item.scope).every(([k, v]) => ((k === 'lang' ? selection.lang : selection.variants?.[k]) ?? v) === v);
 }
 
-if (typeof module !== 'undefined') module.exports = { LAYOUTS, TRANSCRIPTIONS, parse, visible, inScope };
+if (typeof module !== 'undefined') module.exports = { LAYOUTS, TRANSCRIPTIONS, PREFIX, parse, visible, inScope };
