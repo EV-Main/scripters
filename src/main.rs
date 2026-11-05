@@ -1,5 +1,6 @@
 #![feature(default_field_values, trim_prefix_suffix)]
 use std::{
+	collections::BTreeMap,
 	ffi::OsStr,
 	hash::{BuildHasher, RandomState},
 	path::PathBuf,
@@ -58,6 +59,19 @@ enum TranslateCommand {
 		/// comma-separated language codes, each an espeak-ng voice
 		#[arg(long, value_delimiter = ',', required = true)]
 		langs: Vec<String>,
+	},
+	/// fill each of `--langs` from `--from-lang` as the plain command does, with one review across them
+	RegenerateAll {
+		#[command(flatten)]
+		script: Script,
+		#[arg(long)]
+		from_lang: String,
+		/// comma-separated language codes; every language of the md but `--from-lang` if none
+		#[arg(long, value_delimiter = ',')]
+		langs: Option<Vec<String>>,
+		/// ask_llm's model tier
+		#[arg(long, default_value = "translate")]
+		quality: ask_llm::Model,
 	},
 }
 
@@ -127,20 +141,37 @@ fn main() -> Result<()> {
 			fill: None,
 		} => transcribe(&script, &langs),
 		Command::Translate {
+			command: Some(TranslateCommand::RegenerateAll { script, from_lang, langs, quality }),
+			fill: None,
+		} => {
+			let langs = match langs {
+				Some(langs) => langs,
+				None => {
+					let all: Vec<String> = serde_json::from_value(Format::try_new()?.call("(md => parsed(md).langs)", serde_json::json!([script.read()?]))?)?;
+					all.into_iter().filter(|l| *l != from_lang).collect()
+				}
+			};
+			if langs.is_empty() {
+				bail!("{} has no language but `{from_lang}` to regenerate; name new ones in --langs", script.md.display());
+			}
+			translate(&script, &from_lang, &langs, quality)
+		}
+		Command::Translate {
 			command: None,
 			fill: Some(Fill { script, from, to, quality }),
-		} => translate(&script, &from, &to, quality),
+		} => translate(&script, &from, &[to], quality),
 		Command::Translate { .. } => unreachable!("clap: args conflict with subcommands, and some are required"),
 	}
 }
 
-fn translate(script: &Script, from: &str, to: &str, quality: ask_llm::Model) -> Result<()> {
+fn translate(script: &Script, from: &str, tos: &[String], quality: ask_llm::Model) -> Result<()> {
 	let md = script.read()?;
 	let format = Format::try_new()?;
-	let texts: Vec<String> = serde_json::from_value(format.call("bits", serde_json::json!([md, from, to]))?)?;
-	eprintln!("translating {} texts from `{from}` to `{to}`", texts.len());
+	let texts: BTreeMap<String, Vec<String>> = serde_json::from_value(format.call("bits", serde_json::json!([md, from, tos]))?)?;
+	let pairs: Vec<(String, String)> = texts.into_iter().flat_map(|(lang, ts)| ts.into_iter().map(move |t| (lang.clone(), t))).collect();
+	eprintln!("translating {} texts from `{from}` to `{}`", pairs.len(), tos.join("`, `"));
 	let client = ask_llm::Client::new(ask_llm::config::AppConfig::default()).model(quality);
-	let ask = async |text: String| {
+	let ask = async |(to, text): (String, String)| {
 		let prompt = format!(
 			"Translate this line of a sales call script from the language `{from}` into the language `{to}`. Keep its inline markdown (**bold**, *italics*, `code`, [links](url)) as it is. Answer with the translation alone, on one line.\n\n{text}"
 		);
@@ -152,31 +183,31 @@ fn translate(script: &Script, from: &str, to: &str, quality: ask_llm::Model) -> 
 			},
 			Err(e) => Err(eyre!(e)),
 		};
-		(text, answer)
+		(to, text, answer)
 	};
 	let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().wrap_err("starting the async runtime")?;
-	let answers: Vec<_> = runtime.block_on(futures::stream::iter(texts).map(ask).buffer_unordered(8).collect());
-	let mut map = serde_json::Map::new();
+	let answers: Vec<_> = runtime.block_on(futures::stream::iter(pairs).map(ask).buffer_unordered(8).collect());
+	let total = answers.len();
+	let mut maps: BTreeMap<String, serde_json::Map<String, serde_json::Value>> = tos.iter().map(|to| (to.clone(), serde_json::Map::new())).collect();
 	let mut failed = Vec::new();
-	for (text, answer) in answers {
+	for (to, text, answer) in answers {
 		match answer {
 			Ok(t) => {
-				map.insert(text, t.into());
+				maps.get_mut(&to).expect("bits returns only `tos`").insert(text, t.into());
 			}
-			Err(e) => failed.push(format!("{text:?}: {e:?}")),
+			Err(e) => failed.push(format!("`{to}` {text:?}: {e:?}")),
 		}
 	}
 	if !failed.is_empty() {
-		bail!("{} of {} translations failed; nothing written:\n{}", failed.len(), failed.len() + map.len(), failed.join("\n"));
+		bail!("{} of {total} translations failed; nothing written:\n{}", failed.len(), failed.join("\n"));
 	}
-	let map = serde_json::Value::Object(map);
-	let applied = format.call("apply", serde_json::json!([md, from, to, map, []]))?;
+	let applied = format.call("apply", serde_json::json!([md, from, tos, maps, {}]))?;
 	let conflicts = applied["conflicts"].as_array().expect("apply returns {md, conflicts: []}");
 	let out = if conflicts.is_empty() {
 		applied
 	} else {
-		let accepted = review(script, to, conflicts)?;
-		format.call("apply", serde_json::json!([md, from, to, map, accepted]))?
+		let accepted = review(script, conflicts)?;
+		format.call("apply", serde_json::json!([md, from, tos, maps, accepted]))?
 	};
 	let out = out["md"].as_str().expect("apply returns {md, conflicts: []}");
 	std::fs::write(&script.md, out).wrap_err_with(|| format!("writing {}", script.md.display()))
@@ -231,22 +262,26 @@ fn espeak(voice: &str, text: &str) -> Result<String> {
 	Ok(ipa)
 }
 
-/// Each conflict becomes a pending snapshot of a throwaway crate, so `cargo insta review` shows the old block against the new one; the accepted ones are returned.
-fn review(script: &Script, to: &str, conflicts: &[serde_json::Value]) -> Result<Vec<String>> {
+/// Each conflict becomes a pending snapshot `<lang>.<key>` of a throwaway crate, so `cargo insta review` shows the old block against the new one; the accepted ones are returned as {lang → [key]}.
+fn review(script: &Script, conflicts: &[serde_json::Value]) -> Result<BTreeMap<String, Vec<String>>> {
 	let dir = tempfile::tempdir().wrap_err("creating a dir for the review")?;
 	let root = dir.path();
 	let write = |path: PathBuf, content: &str| std::fs::write(&path, content).wrap_err_with(|| format!("writing {}", path.display()));
 	write(root.join("Cargo.toml"), "[package]\nname = \"review\"\nversion = \"0.0.0\"\nedition = \"2024\"\n")?; // cargo-insta runs `cargo metadata` on it
 	std::fs::create_dir(root.join("src")).wrap_err("creating the review crate")?;
 	write(root.join("src/lib.rs"), "")?;
-	let field = |c: &serde_json::Value, k: &str| c[k].as_str().expect("conflicts are {key, title, old, new} strings").to_owned();
+	let field = |c: &serde_json::Value, k: &str| c[k].as_str().expect("conflicts are {lang, key, title, old, new} strings").to_owned();
+	let snap = |c: &serde_json::Value| root.join(format!("{}.{}.snap", field(c, "lang"), field(c, "key")));
 	for c in conflicts {
-		let (key, title) = (field(c, "key"), field(c, "title"));
-		let header = format!("---\nsource: {}\nexpression: {}\n---\n", script.md.display(), serde_json::json!(format!("{title} [{to}]")));
-		write(root.join(format!("{key}.snap")), &(header.clone() + &field(c, "old")))?;
-		write(root.join(format!("{key}.snap.new")), &(header + &field(c, "new")))?;
+		let header = format!(
+			"---\nsource: {}\nexpression: {}\n---\n",
+			script.md.display(),
+			serde_json::json!(format!("{} [{}]", field(c, "title"), field(c, "lang")))
+		);
+		write(snap(c), &(header.clone() + &field(c, "old")))?;
+		write(snap(c).with_extension("snap.new"), &(header + &field(c, "new")))?;
 	}
-	eprintln!("{} existing `{to}` blocks would change; accept the ones to overwrite", conflicts.len());
+	eprintln!("{} existing blocks would change; accept the ones to overwrite", conflicts.len());
 	let status = std::process::Command::new("cargo")
 		.args(["insta", "review", "--workspace-root"])
 		.arg(root)
@@ -255,13 +290,13 @@ fn review(script: &Script, to: &str, conflicts: &[serde_json::Value]) -> Result<
 	if !status.success() {
 		bail!("`cargo insta review` exited with {status}; nothing written. It reviews overwrites of existing blocks: `cargo install cargo-insta` if it is missing");
 	}
-	let mut accepted = Vec::new();
+	let mut accepted: BTreeMap<String, Vec<String>> = BTreeMap::new();
 	for c in conflicts {
-		let path = root.join(format!("{}.snap", field(c, "key")));
-		let snap = std::fs::read_to_string(&path).wrap_err_with(|| format!("reading {}", path.display()))?;
-		let body = snap.splitn(3, "---\n").nth(2).ok_or_else(|| eyre!("{} lost its header", path.display()))?;
+		let path = snap(c);
+		let content = std::fs::read_to_string(&path).wrap_err_with(|| format!("reading {}", path.display()))?;
+		let body = content.splitn(3, "---\n").nth(2).ok_or_else(|| eyre!("{} lost its header", path.display()))?;
 		if body.trim_end() == field(c, "new").trim_end() {
-			accepted.push(field(c, "key"));
+			accepted.entry(field(c, "lang")).or_default().push(field(c, "key"));
 		}
 	}
 	Ok(accepted)

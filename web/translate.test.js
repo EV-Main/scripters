@@ -5,14 +5,15 @@ const { bits, apply, untranscribed, transcribe } = require('./translate.js');
 const dedent = s => s.replace(/^\n/, '').replace(/^\t+/gm, '');
 
 // with a fake translator that brackets every text, so what got translated is visible
-function check(md, overwrite, expected, [from, to] = ['en', 'es']) {
+function check(md, overwrite, expected, from = 'en', tos = ['es']) {
 	md = dedent(md);
 	let actual;
 	try {
-		const texts = bits(md, from, to);
-		assert.equal(new Set(texts).size, texts.length, 'each text asked once');
-		const r = apply(md, from, to, Object.fromEntries(texts.map(t => [t, `<${t}>`])), overwrite);
-		actual = r.md + r.conflicts.map(c => `\nconflict ${c.key} "${c.title}":\n${c.old}=>\n${c.new}`).join('');
+		const texts = bits(md, from, tos);
+		for (const ts of Object.values(texts)) assert.equal(new Set(ts).size, ts.length, 'each text asked once');
+		const maps = Object.fromEntries(Object.entries(texts).map(([l, ts]) => [l, Object.fromEntries(ts.map(t => [t, `<${t}>`]))]));
+		const r = apply(md, from, tos, maps, overwrite);
+		actual = r.md + r.conflicts.map(c => `\nconflict ${c.lang} ${c.key} "${c.title}":\n${c.old}=>\n${c.new}`).join('');
 	} catch (e) {
 		actual = `error: ${e.message}`;
 	}
@@ -40,7 +41,7 @@ test('a section without languages is wrapped in `from`, and gets a `to` sibling 
 		- [](#end)
 		## End
 		`,
-		[],
+		{},
 		`
 		[x]: <oklch(0.5 0.1 10)>
 
@@ -105,7 +106,7 @@ test('an existing `from` block gets its sibling right after it; neutral lines st
 
 		> Pause.
 		`,
-		[],
+		{},
 		`
 		# Intro
 		<div lang="en">
@@ -138,7 +139,7 @@ test("a `from` block's own heading is translated in place of the main title", ()
 		Bonjour.
 		</div>
 		`,
-		[],
+		{},
 		`
 		# Intro
 		<div lang="fr">
@@ -152,7 +153,7 @@ test("a `from` block's own heading is translated in place of the main title", ()
 		<Bonjour.>
 		</div>
 		`,
-		['fr', 'es'],
+		'fr',
 	);
 });
 
@@ -179,7 +180,7 @@ test('variants inside a wrapped section are copied; languages inside variants pa
 		</div>
 		</div>
 		`,
-		[],
+		{},
 		`
 		# Opening
 		<div lang="en">
@@ -233,7 +234,7 @@ test('fenced code is copied as is', () => {
 		- [not](#a)
 		\`\`\`
 		`,
-		[],
+		{},
 		`
 		# A
 		<div lang="en">
@@ -279,10 +280,10 @@ const existing = `
 test('an existing `to` block that differs is a conflict, left as is; an equal one is not', () => {
 	check(
 		existing,
-		[],
+		{},
 		`
 		${existing}
-		conflict intro "Intro":
+		conflict es intro "Intro":
 		<div lang="es">
 		Hola.
 		</div>
@@ -298,7 +299,7 @@ test('an existing `to` block that differs is a conflict, left as is; an equal on
 test('a conflict named in `overwrite` is replaced by the translation', () => {
 	check(
 		existing,
-		['intro'],
+		{ es: ['intro'] },
 		`
 		# Intro
 		<div lang="en">
@@ -318,6 +319,75 @@ test('a conflict named in `overwrite` is replaced by the translation', () => {
 		<Hi.>
 		</div>
 		`,
+	);
+});
+
+test('many languages at once: new blocks follow their `from` one in order, a section is wrapped once, conflicts carry their language', () => {
+	check(
+		`
+		# Intro
+		<div lang="en">
+		Hello.
+		</div>
+		<div lang="es">
+		Hola.
+		</div>
+
+		# Next
+		Hi.
+
+		# End
+		`,
+		{},
+`
+		# Intro
+		<div lang="en">
+		Hello.
+		</div>
+		<div lang="de">
+		## <Intro>
+		<Hello.>
+		</div>
+		<div lang="es">
+		Hola.
+		</div>
+
+		# Next
+		<div lang="en">
+
+		Hi.
+		</div>
+		<div lang="es">
+
+		## <Next>
+		<Hi.>
+		</div>
+		<div lang="de">
+
+		## <Next>
+		<Hi.>
+		</div>
+
+		# End
+		<div lang="es">
+		## <End>
+		</div>
+		<div lang="de">
+		## <End>
+		</div>
+
+		conflict es intro "Intro":
+		<div lang="es">
+		Hola.
+		</div>
+		=>
+		<div lang="es">
+		## <Intro>
+		<Hello.>
+		</div>
+		`,
+		'en',
+		['es', 'de'],
 	);
 });
 
@@ -342,7 +412,7 @@ test('a section whose languages do not include `from`, or pair up unevenly, is a
 		</div>
 		</div>
 		`,
-		[],
+		{},
 		`
 		error: #intro: no \`en\` block
 		#close: 2 \`en\` blocks but 1 \`es\` within {"offer":"demo"}
@@ -352,7 +422,7 @@ test('a section whose languages do not include `from`, or pair up unevenly, is a
 
 test('a response label translated into one holding a bracket is an error', () => {
 	const md = '# A\n- [Yes](#a)\n';
-	assert.throws(() => apply(md, 'en', 'es', { A: 'A', Yes: 'Sí [ok]' }, []), /#a: the translation of the response `Yes` holds a bracket/);
+	assert.throws(() => apply(md, 'en', ['es'], { es: { A: 'A', Yes: 'Sí [ok]' } }, {}), /#a: the `es` translation of the response `Yes` holds a bracket/);
 });
 
 // with a fake espeak-ng that slashes every prose, so what got read is visible

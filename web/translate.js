@@ -1,4 +1,4 @@
-// Fills one language of a script from another, one bit of prose at a time, and caches transcriptions: docs/ARCHITECTURE.md#translating
+// Fills languages of a script from another, one bit of prose at a time, and caches transcriptions: docs/ARCHITECTURE.md#translating
 
 if (typeof module !== 'undefined') var { TRANSCRIPTIONS, PREFIX, parse } = require('./model.js');
 
@@ -95,47 +95,58 @@ function blocks(md, from, to) {
 	return out;
 }
 
-// the texts to translate, each once
-function bits(md, from, to) {
-	const texts = new Set();
-	for (const b of blocks(md, from, to)) {
-		if (b.heading) texts.add(b.title);
-		for (const p of b.pieces) if (typeof p !== 'string') texts.add(p.text);
-	}
-	return [...texts];
+// the texts to translate into each of `tos`, each once: {lang → [text]}
+function bits(md, from, tos) {
+	if (new Set(tos).size !== tos.length) throw new Error(`a language named twice in ${tos.join(',')}`);
+	return Object.fromEntries(
+		tos.map(to => {
+			const texts = new Set();
+			for (const b of blocks(md, from, to)) {
+				if (b.heading) texts.add(b.title);
+				for (const p of b.pieces) if (typeof p !== 'string') texts.add(p.text);
+			}
+			return [to, [...texts]];
+		}),
+	);
 }
 
-// `map`: {text → translation} for every one of `bits`; `overwrite`: keys of the conflicts to resolve with the translation
-function apply(md, from, to, map, overwrite) {
-	const tr = text => {
-		if (!(text in map)) throw new Error(`no translation of ${JSON.stringify(text)}`);
-		return map[text];
-	};
+// `maps`: {lang → {text → translation}} for every one of `bits`; `overwrite`: {lang → keys of the conflicts to resolve with the translation}. New blocks follow their `from` block in `tos` order
+function apply(md, from, tos, maps, overwrite) {
 	const edits = [];
+	const inserts = new Map(); // at → the edit holding every new block there
 	const conflicts = [];
 	const errors = [];
-	for (const b of blocks(md, from, to)) {
-		const lines = b.pieces.map(p => {
-			if (typeof p === 'string') return p;
-			const t = tr(p.text);
-			if (p.label && /[[\]]/.test(t)) errors.push(`#${b.key}: the translation of the response \`${p.text}\` holds a bracket: ${t}`);
-			return p.before + t + p.after;
-		});
-		if (b.heading) lines.splice(Math.max(0, lines.findIndex(l => l.trim() !== '')), 0, b.heading + tr(b.title));
-		const block = [`<div lang="${to}">`, ...lines, '</div>', ''].join('\n');
-		if (b.old) {
-			const old = md.slice(b.old.start, b.old.end);
-			if (old.trimEnd() === block.trimEnd()) continue;
-			if (overwrite.includes(b.key)) edits.push({ start: b.old.start, end: b.old.end, text: block });
-			else conflicts.push({ key: b.key, title: b.title, old, new: block });
-			continue;
+	for (const to of tos) {
+		const tr = text => {
+			if (!(text in maps[to])) throw new Error(`no \`${to}\` translation of ${JSON.stringify(text)}`);
+			return maps[to][text];
+		};
+		for (const b of blocks(md, from, to)) {
+			const lines = b.pieces.map(p => {
+				if (typeof p === 'string') return p;
+				const t = tr(p.text);
+				if (p.label && /[[\]]/.test(t)) errors.push(`#${b.key}: the \`${to}\` translation of the response \`${p.text}\` holds a bracket: ${t}`);
+				return p.before + t + p.after;
+			});
+			if (b.heading) lines.splice(Math.max(0, lines.findIndex(l => l.trim() !== '')), 0, b.heading + tr(b.title));
+			const block = [`<div lang="${to}">`, ...lines, '</div>', ''].join('\n');
+			if (b.old) {
+				const old = md.slice(b.old.start, b.old.end);
+				if (old.trimEnd() === block.trimEnd()) continue;
+				if (overwrite[to]?.includes(b.key)) edits.push({ start: b.old.start, end: b.old.end, text: block });
+				else conflicts.push({ lang: to, key: b.key, title: b.title, old, new: block });
+				continue;
+			}
+			if (!inserts.has(b.at)) {
+				if (b.wrap !== null) edits.push({ start: b.wrap.at, end: b.wrap.at, text: b.wrap.open });
+				inserts.set(b.at, { start: b.at, end: b.at, text: b.wrap === null ? '' : '</div>\n' });
+			}
+			inserts.get(b.at).text += block;
 		}
-		if (b.wrap !== null) edits.push({ start: b.wrap.at, end: b.wrap.at, text: b.wrap.open });
-		edits.push({ start: b.at, end: b.at, text: (b.wrap === null ? '' : '</div>\n') + block });
 	}
 	if (errors.length) throw new Error(errors.join('\n'));
 	let out = md;
-	for (const e of edits.sort((a, b) => b.start - a.start)) {
+	for (const e of [...edits, ...inserts.values()].sort((a, b) => b.start - a.start || b.end - a.end)) { // an existing block right after its `from` one is replaced before new ones go in front of it
 		const text = e.start > 0 && out[e.start - 1] !== '\n' ? `\n${e.text}` : e.text; // the md ends without a newline
 		out = out.slice(0, e.start) + text + out.slice(e.end);
 	}

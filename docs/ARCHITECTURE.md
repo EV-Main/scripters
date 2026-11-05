@@ -89,6 +89,7 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 - `from` and `to` blocks pair up in order within the same enclosing variants. A section with languages but no `from` block in some variants, or a count of `to` blocks other than none or as many, is an error.
 - Lines outside every language scope of a section that has some stay as they are.
 - An existing `to` block the translation would change is shown by `cargo insta review`: accepted ones are overwritten, the rest stay. The md is written once, at the end, and only if every call answered and the result parses.
+- `scripters translate regenerate-all <md> --from-lang <code> [--langs <code>,…]` does the same for each of `--langs` (every language of the md but `from` by default), with one review across them. New blocks follow their `from` block in `--langs` order; existing ones stay where they are.
 
 ### Transcriptions
 `scripters translate transcribe <md> --langs <code>,<code>…` caches espeak-ng's IPA of each line of the named languages' blocks in the md, in place.
