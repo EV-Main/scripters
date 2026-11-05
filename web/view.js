@@ -115,7 +115,10 @@ function render() {
 		head.append(labelPicker(n));
 		const title = el('h2', '', marked.parseInline(n.titles[sel.lang] ?? n.title));
 		const titled = n.langs.find(b => b.lang === sel.lang && b.title !== null);
-		if (titled && said(titled, titled.title, null)) title.title = said(titled, titled.title, null);
+		if (titled && said(titled, titled.title, null)) {
+			title.classList.add('said');
+			title.dataset.ipa = said(titled, titled.title, null);
+		}
 		head.append(title);
 		const del = el('button', 'delete', '×');
 		del.title = 'delete card (select, then Backspace)';
@@ -140,7 +143,7 @@ function render() {
 			const [prefix] = PREFIX.exec(l.text);
 			const text = l.text.slice(prefix.length).trimEnd();
 			const hint = ipa.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-			runs.at(-1).lines.push(`${prefix}<span class="said" title="${hint}">${text}</span>${l.text.slice(prefix.length + text.length)}`); // inline html, so the line stays in its paragraph or list item
+			runs.at(-1).lines.push(`${prefix}<span class="said" data-ipa="${hint}">${text}</span>${l.text.slice(prefix.length + text.length)}`); // inline html, so the line stays in its paragraph or list item
 		}
 		for (const { vs, lines } of runs.filter(r => r.lines.some(l => l.trim() !== ''))) { // a variant holding only responses frames nothing
 			const html = el('template', '', marked.parse(lines.join('\n'))).content;

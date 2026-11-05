@@ -356,8 +356,8 @@ Hi **there**
 </details>
 "#;
 	let drive = r#"
-const hints = () => [...document.querySelectorAll('#canvas .said')].map(e => `${e.textContent}=${e.title}`).join('|');
-const titleHint = () => document.querySelector('#canvas h2').title;
+const hints = () => [...document.querySelectorAll('#canvas .body .said')].map(e => `${e.textContent}=${e.dataset.ipa}`).join('|');
+const titleHint = () => document.querySelector('#canvas h2').dataset.ipa;
 if (hints() !== 'Hi there=hˈaɪ ðˈeə|Yes sir=jˈɛs sˈɜː|No sir=nˈəʊ sˈɜː') throw new Error(`en: ${hints()}`);
 if (titleHint() !== 'həlˈəʊ') throw new Error(`en title: ${titleHint()}`);
 const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'language').querySelector('select'); s.value = 'ru'; s.dispatchEvent(new Event('change'));
