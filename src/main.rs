@@ -115,6 +115,7 @@ fn main() -> Result<()> {
 				}
 			};
 			std::fs::write(&out, bundle(&title, &page, &script.read()?, None)?).wrap_err_with(|| format!("writing {}", out.display()))?;
+			println!("{}", out.display());
 			if open {
 				xdg_open(out.as_os_str())?;
 			}
