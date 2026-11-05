@@ -258,6 +258,13 @@ fn following_a_variant_response_chooses_its_variant() {
 }
 
 #[test]
+fn an_inline_variant_inside_a_language_scope_is_chosen_by_clicking_it() {
+	let md = "# A\n<div lang=\"en\">\n<div k=\"v\">Hi,</div><div k=\"w\">Hello,</div> **Sam** here.\n</div>\n";
+	let choose = "[...document.querySelectorAll('#canvas section.variant')].find(s => s.textContent.includes('Hello')).click();";
+	check_save(&[], md, choose, &format!("[k=w]: #\n[lang=\"en\"]: #\n[layout=\"dfs\"]: #\n\n---\n\n{md}"));
+}
+
+#[test]
 fn new_card_opens_its_editor() {
 	let press = |key: &str| format!("document.body.dispatchEvent(new KeyboardEvent('keydown', {{ key: '{key}', bubbles: true }}));");
 	let layout = "[layout=\"dfs\"]: #\n\n---\n\n";

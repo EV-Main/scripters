@@ -74,6 +74,7 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 
 ### Scopes
 - Inside a section, a line `<div key="value">` opens a scope and the next `</div>` line closes the innermost open one; key and value are `[\w-]+`. Both lines are removed from the card body. The md renders as plain html divs elsewhere.
+- Inside a body line outside code fences, `<div key="value">text</div>` is an **inline** scope: the line splits into one line per combination of its inline scopes' values, each keeping only its own values' text and belonging to those scopes too.
 - `<div lang="code">` is a **language** scope; any other key is a variant **dimension** (an A/B split), `<div opener="warm">`.
 - A body line or response belongs to every scope open around it, and agrees with a selection unless one of them has a different value chosen for its key. A card's variants share its slot, so links into it never name a variant.
 - A variant scope opened outside any section, or opened outside every in-section scope with a heading as its next non-blank line, is a **section scope**: its `<div>` and `</div>` lines end the current section, and every node headed inside it belongs to its variant. Such a node is visible only when its variant agrees with the selection, whatever response leads to it; its own lines and responses belong to the scopes opened inside its section alone.

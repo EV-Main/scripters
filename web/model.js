@@ -1,6 +1,7 @@
 // Sole parser of the script format: docs/ARCHITECTURE.md#format
 
 const LAYOUTS = ['dfs', 'bfs']; // implemented in web/layout.js
+const INLINE = /<div ([\w-]+)="([\w-]+)">(.*?)<\/div>/g;
 
 function parse(md) {
 	const nodes = [];
@@ -99,6 +100,20 @@ function parse(md) {
 				return;
 			}
 			if (rule && !node) return;
+			const spans = [...line.text.matchAll(INLINE)];
+			if (spans.length && node) {
+				const split = {}; // key → its values on this line
+				for (const [, key, value] of spans) {
+					if (!(key in split) && scopes.some(s => s.key === key)) errors.push({ line: lineNo, msg: `\`<div ${key}>\` inside another` });
+					if (!(split[key] ??= []).includes(value)) split[key].push(value);
+					const values = key === 'lang' ? langs : (dims[key] ??= []);
+					if (!values.includes(value)) values.push(value);
+				}
+				let combos = [{}];
+				for (const [key, values] of Object.entries(split)) combos = combos.flatMap(c => values.map(v => ({ ...c, [key]: v })));
+				for (const c of combos) node.body.push({ text: line.text.replace(INLINE, (_, key, value, text) => (c[key] === value ? text : '')), scope: { ...scope(false), ...c } });
+				return;
+			}
 		}
 		if (node) node.body.push({ text: line.text, scope: scope(false) });
 		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text outside any card' });

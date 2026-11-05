@@ -479,6 +479,30 @@ test('variant scopes split one card and nest with language scopes either way', (
 	);
 });
 
+test('an inline variant scope splits its line into one per combination of values', () => {
+	checkParse(
+		`
+		# A
+		<div lang="en">
+		<div k="v">Hi,</div><div k="w">Hello,</div> I'm <div j="x">Sam</div><div j="y">Jo</div>.
+		</div>
+		<div k="v">
+		<div k="w">Nested</div>
+		</div>
+		\`\`\`
+		<div k="u">fenced</div>
+		\`\`\`
+		`,
+		`
+		node a "A" body="{lang=en k=v j=x}Hi, I'm Sam.\\n{lang=en k=v j=y}Hi, I'm Jo.\\n{lang=en k=w j=x}Hello, I'm Sam.\\n{lang=en k=w j=y}Hello, I'm Jo.\\n{k=w}Nested\\n\`\`\`\\n<div k=\\"u\\">fenced</div>\\n\`\`\`"
+		langs: en
+		dim k: v w
+		dim j: x y
+		error L6: \`<div k>\` inside another
+		`,
+	);
+});
+
 test('a variant scope opening right before a heading or outside any section holds whole sections', () => {
 	checkParse(
 		`
