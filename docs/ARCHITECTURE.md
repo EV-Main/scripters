@@ -11,13 +11,13 @@ watch: script.scr.md ─bundle per request─► http://127.0.0.1 page ─poll /
        page Ctrl+S ─PUT md─► script.scr.md   (refused if it changed since the page last merged it)
 ```
 
-- `src/`: the bundler, the `watch` server, and `translate`'s LLM calls and review. It never parses the format: `translate` runs web/translate.js in an embedded JS engine.
+- `src/`: the bundler, the `watch` server, and `translate`'s LLM and espeak-ng calls and review. It never parses the format: `translate` runs web/translate.js in an embedded JS engine.
 - `web/model.js`: the format's only parser, and its visibility rules; DOM-free.
 - `web/layout.js`: dagre's layout of the visible graph, one strategy per layout for which edges point back.
 - `web/merge.js`: line-level three-way merge of the page's unsaved edits with the md changed on disk; DOM-free.
 - `web/place.js`: cross-axis placement of dagre's layout (Graphviz dot's network-simplex pass); DOM-free.
 - `web/view.js`: everything the page does.
-- `web/translate.js`: what `translate` asks the LLM, and where the answers go; not part of the page.
+- `web/translate.js`: what `translate` asks the LLM and espeak-ng, and where the answers go; not part of the page.
 
 ## Invariants
 <!-- embed spec/page.md {{{always-->
@@ -56,7 +56,7 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 ### Nodes
 - Each ATX heading (`#` to `######`, any level) outside a code fence and outside every scope but section scopes starts a node; levels only shape the md elsewhere. Its source span runs to the next such heading or section scope line.
 - A heading whose text starts with `-` (`# - Objections`, `## -Notes`) is a **noop**: it ends the current section and starts none, so it only groups sections when the md is read elsewhere. Inside a scope it is ignored.
-- Non-blank text outside any section (before the first heading, under a noop, or after a section scope closes), other than label definitions, selection marks and `---` lines, is an error.
+- Non-blank text outside any section (before the first heading, under a noop, or after a section scope closes), other than label definitions, selection marks, `---` lines and the transcriptions block, is an error.
 - A trailing `{.label .label2}` block on the heading is stripped from the title; its tokens are labels. A `k=v` token in it is an error: variants are scopes.
 - The GitHub anchor slug of the remaining title is the node's **slot**, its id. Two nodes with the same slot are an error.
 
@@ -90,6 +90,14 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 - Lines outside every language scope of a section that has some stay as they are.
 - An existing `to` block the translation would change is shown by `cargo insta review`: accepted ones are overwritten, the rest stay. The md is written once, at the end, and only if every call answered and the result parses.
 
+### Transcriptions
+`scripters translate transcribe <md> <code>,<code>…` caches espeak-ng's IPA of the named languages' blocks in the md, in place.
+- A block is one `<div lang>` scope of a section, keyed by its language and a digest of its text from `<div` to `</div>`: editing it leaves it untranscribed.
+- Its body lines and title, outside code fences, are read one at a time, with markdown, list, quote and heading markers dropped; a line with no letters is not read. Responses are not read.
+- The cache is a block `<details><summary>transcriptions</summary>` … `</details>` outside every scope; it ends the section before it. Each non-blank line in it is the json `{"lang", "hash", "ipa": {line → ipa}}` of one block. A second one, a line of another shape, or two for one language and digest is an error.
+- Only blocks without a transcription of their text are read. The cache is rewritten at the bottom, in md order, keeping one entry per current block: an edited or deleted block's goes.
+- A page whose cache has entries offers a `transcription` toggle; while on, each line and title of the chosen language with a transcription of its block shows its IPA under it.
+
 ### Marks
 - A line `[dim=value]: #`, `[lang="code"]: #` or `[layout="bfs"]: #` outside any section marks a chosen variant value, the chosen language, or the layout: a link reference definition, so it renders as nothing elsewhere.
 - A page with no selection of its own starts from the marks; `--layout` outranks the layout mark.
@@ -116,7 +124,7 @@ Every response leads one rank or more down, except one in each loop, which point
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside any scope, or at the end of its section if it has none.
 
 ### Selection
-`{ variants: {dim → value}, lang, layout, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
+`{ variants: {dim → value}, lang, layout, transcribe: bool, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
 
 - A node is **visible** iff it agrees with the selection and is reachable from the root or a stray along responses and nodes that agree with it.
 - Cards show only the lines that agree with the selection. Lines and responses of a dimension with no value chosen show framed with their variant. Unlike variants, a language is always chosen while the document has any.

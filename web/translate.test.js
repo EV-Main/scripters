@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { bits, apply } = require('./translate.js');
+const { bits, apply, untranscribed, transcribe } = require('./translate.js');
 
 const dedent = s => s.replace(/^\n/, '').replace(/^\t+/gm, '');
 
@@ -353,4 +353,118 @@ test('a section whose languages do not include `from`, or pair up unevenly, is a
 test('a response label translated into one holding a bracket is an error', () => {
 	const md = '# A\n- [Yes](#a)\n';
 	assert.throws(() => apply(md, 'en', 'es', { A: 'A', Yes: 'Sí [ok]' }, []), /#a: the translation of the response `Yes` holds a bracket/);
+});
+
+// with a fake espeak-ng that slashes every prose, so what got read is visible
+function checkTranscribe(md, langs, expected) {
+	md = dedent(md);
+	let actual;
+	try {
+		const asked = untranscribed(md, langs);
+		const ipa = Object.fromEntries(Object.entries(asked).map(([l, lines]) => [l, Object.fromEntries(Object.entries(lines).map(([line, prose]) => [line, `/${prose}/`]))]));
+		actual = `${Object.entries(asked).flatMap(([l, lines]) => Object.values(lines).map(p => `asked ${l}: ${p}`)).join('\n')}\n${transcribe(md, langs, ipa)}`;
+	} catch (e) {
+		actual = `error: ${e.message}`;
+	}
+	assert.equal(actual.trim(), dedent(expected).trim());
+}
+
+const SCRIPT = `
+	# A
+	<div lang="en">
+	## Hello
+	Hi, this is **Sam** from [Acme](https://acme.io).
+	- <div k="v">Point</div><div k="w">Item</div> one
+	> quoted
+	\`\`\`
+	code
+	\`\`\`
+	- [Yes](#b)
+	</div>
+	<div lang="ru">
+	Привет
+	</div>
+	# B
+	<div lang="en">
+	Bye
+	</div>
+	`;
+
+test('a language\'s blocks get their prose read once, cached at the bottom by language and text', () => {
+	checkTranscribe(
+		SCRIPT,
+		['en'],
+		`
+		asked en: Hello
+		asked en: Hi, this is Sam from Acme.
+		asked en: Point one
+		asked en: Item one
+		asked en: quoted
+		asked en: Bye
+		# A
+		<div lang="en">
+		## Hello
+		Hi, this is **Sam** from [Acme](https://acme.io).
+		- <div k="v">Point</div><div k="w">Item</div> one
+		> quoted
+		\`\`\`
+		code
+		\`\`\`
+		- [Yes](#b)
+		</div>
+		<div lang="ru">
+		Привет
+		</div>
+		# B
+		<div lang="en">
+		Bye
+		</div>
+
+		<details><summary>transcriptions</summary>
+
+		{"lang":"en","hash":"244612c835b30","ipa":{"Hello":"/Hello/","Hi, this is **Sam** from [Acme](https://acme.io).":"/Hi, this is Sam from Acme./","- Point one":"/Point one/","- Item one":"/Item one/","> quoted":"/quoted/"}}
+		{"lang":"en","hash":"1db176de5cee60","ipa":{"Bye":"/Bye/"}}
+
+		</details>
+		`,
+	);
+});
+
+test('only blocks changed since their transcription are read again; a changed block\'s old one goes', () => {
+	const once = transcribe(dedent(SCRIPT), ['en', 'ru'], { en: { Hello: 'h', Bye: 'b' }, ru: { Привет: 'p' } });
+	checkTranscribe(
+		once.replace('Bye', 'Bye now'),
+		['en'],
+		`
+		asked en: Bye now
+		# A
+		<div lang="en">
+		## Hello
+		Hi, this is **Sam** from [Acme](https://acme.io).
+		- <div k="v">Point</div><div k="w">Item</div> one
+		> quoted
+		\`\`\`
+		code
+		\`\`\`
+		- [Yes](#b)
+		</div>
+		<div lang="ru">
+		Привет
+		</div>
+		# B
+		<div lang="en">
+		Bye now
+		</div>
+
+		<details><summary>transcriptions</summary>
+
+		{"lang":"en","hash":"244612c835b30","ipa":{"Hello":"h"}}
+		{"lang":"ru","hash":"10627665689db3","ipa":{"Привет":"p"}}
+		{"lang":"en","hash":"6c853f2a72dd8","ipa":{"Bye now":"/Bye now/"}}
+
+		</details>
+		`,
+	);
+	checkTranscribe('# A\n<div lang="en">\nHi\n</div>\n', ['de'], 'error: no `<div lang="de">`');
+	checkTranscribe('# A\nHi\n', [], '# A\nHi');
 });

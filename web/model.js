@@ -2,6 +2,7 @@
 
 const LAYOUTS = ['dfs', 'bfs']; // implemented in web/layout.js
 const INLINE = /<div ([\w-]+)="([\w-]+)">(.*?)<\/div>/g;
+var TRANSCRIPTIONS = '<details><summary>transcriptions</summary>'; // var: web/translate.js imports it with `var`, and the CLI evaluates both in one scope
 
 function parse(md) {
 	const nodes = [];
@@ -11,6 +12,7 @@ function parse(md) {
 	const dims = {};
 	const marks = [];
 	const preamble = { end: md.length, ruled: false }; // the lines before the first heading
+	let transcriptions = null; // {entries, start, end}; `end` is null while open
 	const lines = [];
 	for (let start = 0; start < md.length; ) {
 		const nl = md.indexOf('\n', start);
@@ -26,6 +28,20 @@ function parse(md) {
 	const inCard = () => scopes.some(s => !s.block);
 	lines.forEach((line, i) => {
 		const lineNo = i + 1;
+		if (transcriptions?.end === null) {
+			if (/^<\/details>[ \t]*$/.test(line.text)) transcriptions.end = line.end;
+			else if (line.text.trim() !== '') {
+				let e = null;
+				try {
+					e = JSON.parse(line.text);
+				} catch {} // reported below, with what a line must hold
+				const valid = typeof e?.lang === 'string' && typeof e.hash === 'string' && typeof e.ipa === 'object' && e.ipa !== null && Object.values(e.ipa).every(v => typeof v === 'string');
+				if (!valid) errors.push({ line: lineNo, msg: 'a transcription is a {"lang", "hash", "ipa": {text → ipa}} json line' });
+				else if (transcriptions.entries.some(o => o.lang === e.lang && o.hash === e.hash)) errors.push({ line: lineNo, msg: `a second \`${e.lang}\` transcription of one block` });
+				else transcriptions.entries.push(e);
+			}
+			return;
+		}
 		const f = /^ {0,3}(`{3,}|~{3,})/.exec(line.text);
 		if (fence) {
 			if (f && f[1][0] === fence[0] && f[1].length >= fence.length && line.text.trim() === f[1]) fence = null;
@@ -38,6 +54,13 @@ function parse(md) {
 			const block = d !== null && d[1] !== 'lang' && !inCard() && (!node || /^ {0,3}#{1,6}(?:[ \t]|$)/.test(lines.find((l, j) => j > i && l.text.trim() !== '')?.text ?? ''));
 			if (preamble.end === md.length && (h || block)) preamble.end = line.start;
 			else if (preamble.end === md.length && line.text.trim() !== '') preamble.ruled = rule;
+			if (line.text.trimEnd() === TRANSCRIPTIONS && !scopes.length) {
+				if (transcriptions) errors.push({ line: lineNo, msg: 'a second transcriptions block' });
+				transcriptions = { entries: [], start: line.start, end: null };
+				if (node) node.end = line.start;
+				node = null;
+				return;
+			}
 			const noop = h?.[1]?.startsWith('-'); // groups sections when the md is read elsewhere
 			if (noop && inCard()) return;
 			if (noop) {
@@ -52,6 +75,7 @@ function parse(md) {
 				if (t.labels.length) errors.push({ line: lineNo, msg: 'labels go on the main heading' });
 				if (lang in node.titles) errors.push({ line: lineNo, msg: `a second \`${lang}\` title` });
 				else node.titles[lang] = t.title;
+				scopes.find(s => s.key === 'lang').texts.push(t.title);
 				return;
 			}
 			if (h) {
@@ -71,14 +95,14 @@ function parse(md) {
 				if (block && node) node.end = line.start;
 				if (block) node = null;
 				if (scopes.some(s => s.key === key)) errors.push({ line: lineNo, msg: `\`<div ${key}>\` inside another` });
-				scopes.push({ key, value, line: lineNo, start: line.start, block });
+				scopes.push({ key, value, line: lineNo, start: line.start, block, texts: [] });
 				const values = key === 'lang' ? langs : (dims[key] ??= []);
 				if (!values.includes(value)) values.push(value);
 				return;
 			}
 			if (scopes.length && /^ {0,3}<\/div>[ \t]*$/.test(line.text)) {
 				const s = scopes.pop();
-				if (s.key === 'lang') node.langs.push({ lang: s.value, scope: scope(false), start: s.start, end: line.end }); // for web/translate.js
+				if (s.key === 'lang') node.langs.push({ lang: s.value, scope: scope(false), start: s.start, end: line.end, hash: digest(md.slice(s.start, line.end)), texts: s.texts, ipa: null });
 				if (s.block && node) {
 					node.end = line.start;
 					node = null;
@@ -111,14 +135,22 @@ function parse(md) {
 				}
 				let combos = [{}];
 				for (const [key, values] of Object.entries(split)) combos = combos.flatMap(c => values.map(v => ({ ...c, [key]: v })));
-				for (const c of combos) node.body.push({ text: line.text.replace(INLINE, (_, key, value, text) => (c[key] === value ? text : '')), scope: { ...scope(false), ...c } });
+				for (const c of combos) {
+					const text = line.text.replace(INLINE, (_, key, value, text) => (c[key] === value ? text : ''));
+					node.body.push({ text, scope: { ...scope(false), ...c } });
+					scopes.find(s => s.key === 'lang')?.texts.push(text);
+				}
 				return;
 			}
 		}
-		if (node) node.body.push({ text: line.text, scope: scope(false) });
-		else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text outside any card' });
+		if (node) {
+			node.body.push({ text: line.text, scope: scope(false) });
+			if (!fence && !f) scopes.find(s => s.key === 'lang')?.texts.push(line.text); // code is not read aloud
+		} else if (line.text.trim() !== '') errors.push({ line: lineNo, msg: 'text outside any card' });
 	});
 	for (const s of scopes) errors.push({ line: s.line, msg: `\`<div ${s.key}="${s.value}">\` not closed` });
+	if (transcriptions?.end === null) errors.push({ line: md.slice(0, transcriptions.start).split('\n').length, msg: 'transcriptions block not closed' });
+	for (const b of nodes.flatMap(n => n.langs)) b.ipa = transcriptions?.entries.find(e => e.lang === b.lang && e.hash === b.hash)?.ipa ?? null;
 	if (node) node.end = md.length;
 	if (nodes.length === 0 && errors.length === 0) errors.push({ line: 1, msg: 'no headings' });
 
@@ -143,7 +175,7 @@ function parse(md) {
 	}
 
 	for (const vs of Object.values(dims)) vs.sort();
-	const graph = { nodes, edges, labels, marks, preamble, langs, dims, errors, warnings: [] };
+	const graph = { nodes, edges, labels, marks, preamble, langs, dims, transcriptions, errors, warnings: [] };
 	if (errors.length === 0) {
 		const reached = visible(graph, {});
 		for (const n of nodes.filter(n => !reached.has(n.id))) {
@@ -184,6 +216,19 @@ function heading(raw, at, start, line, errors) {
 	return { id, title, titles: {}, langs: [], labels, attrs, line, start, end: null, body: [], responses: [], stray: false };
 }
 
+// cyrb53: keys a block's transcription to its text
+function digest(s) {
+	let [a, b] = [0xdeadbeef, 0x41c6ce57];
+	for (let i = 0; i < s.length; i++) {
+		const c = s.charCodeAt(i);
+		a = Math.imul(a ^ c, 2654435761);
+		b = Math.imul(b ^ c, 1597334677);
+	}
+	a = Math.imul(a ^ (a >>> 16), 2246822507) ^ Math.imul(b ^ (b >>> 13), 3266489909);
+	b = Math.imul(b ^ (b >>> 16), 2246822507) ^ Math.imul(a ^ (a >>> 13), 3266489909);
+	return (4294967296 * (2097151 & b) + (a >>> 0)).toString(16);
+}
+
 function visible(graph, selection) {
 	const out = new Map();
 	for (const e of graph.edges.filter(e => inScope(e, selection))) {
@@ -207,4 +252,4 @@ function inScope(item, selection) {
 	return Object.entries(item.scope).every(([k, v]) => ((k === 'lang' ? selection.lang : selection.variants?.[k]) ?? v) === v);
 }
 
-if (typeof module !== 'undefined') module.exports = { LAYOUTS, parse, visible, inScope };
+if (typeof module !== 'undefined') module.exports = { LAYOUTS, TRANSCRIPTIONS, parse, visible, inScope };

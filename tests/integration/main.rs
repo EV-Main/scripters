@@ -335,3 +335,32 @@ fn watch_page_edits_merge_with_the_md_saved_elsewhere() {
 		&format!("{layout}# A\n\n# B\nHi\n"),
 	);
 }
+
+#[test]
+fn transcription_shows_under_the_lines_of_blocks_unchanged_since_their_transcription() {
+	let md = r#"# A
+<div lang="en">
+Hi
+</div>
+<div lang="ru">
+Привет
+</div>
+
+<details><summary>transcriptions</summary>
+
+{"lang":"en","hash":"c84ac2228f7ca","ipa":{"Hi":"haɪ"}}
+{"lang":"ru","hash":"0","ipa":{"Привет":"prʲivʲˈet"}}
+
+</details>
+"#;
+	let drive = r#"
+const pick = (dim, v) => { const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === dim).querySelector('select'); s.value = v; s.dispatchEvent(new Event('change')); };
+const ipa = () => [...document.querySelectorAll('#canvas .ipa')].map(e => e.textContent).join();
+if (ipa() !== '') throw new Error('transcription starts off');
+pick('transcription', 'on');
+if (ipa() !== 'haɪ') throw new Error(`en: ${ipa()}`);
+pick('language', 'ru');
+if (ipa() !== '') throw new Error(`the ru block changed since: ${ipa()}`);
+"#;
+	check_save(&[], md, drive, &format!("[lang=\"ru\"]: #\n[layout=\"dfs\"]: #\n\n---\n\n{md}"));
+}

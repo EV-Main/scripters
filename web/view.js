@@ -29,6 +29,7 @@ let sel = JSON.parse(sessionStorage.getItem(KEY)) ?? {
 	calling: false,
 };
 sel.layout ??= document.documentElement.dataset.layout ?? setting('layout') ?? 'dfs'; // `--layout` outranks the md's mark; absent from a selection stored before layouts
+sel.transcribe ??= false;
 let saved = md; // what the file on disk holds
 let undos = []; // earlier mds, latest last; in memory only
 let redos = [];
@@ -89,7 +90,10 @@ function render() {
 	const pending = scope => Object.entries(scope).filter(([k]) => k !== 'lang' && !(k in sel.variants)); // its variants not chosen yet
 	const chips = vs => vs.map(([k, v]) => el('span', 'chip', `${k}=${v}`));
 
+	const escape = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	for (const n of nodes) {
+		const ipa = sel.transcribe ? Object.assign({}, ...n.langs.filter(b => b.lang === sel.lang && b.ipa).map(b => b.ipa)) : {};
+		const spoken = (text, lang) => (lang === sel.lang && Object.hasOwn(ipa, text) ? `<span class="ipa">${escape(ipa[text])}</span>` : null);
 		const card = el('article', 'card');
 		card.dataset.id = n.id;
 		card.classList.toggle('visited', sel.path.includes(n.id));
@@ -109,7 +113,7 @@ function render() {
 			head.append(p);
 		}
 		head.append(labelPicker(n));
-		head.append(el('h2', '', marked.parseInline(n.titles[sel.lang] ?? n.title)));
+		head.append(el('h2', '', marked.parseInline(n.titles[sel.lang] ?? n.title) + (spoken(n.titles[sel.lang], sel.lang) ?? '')));
 		const del = el('button', 'delete', '×');
 		del.title = 'delete card (select, then Backspace)';
 		del.addEventListener('click', e => {
@@ -126,6 +130,8 @@ function render() {
 			const vs = pending(l.scope);
 			if (JSON.stringify(runs.at(-1)?.vs) !== JSON.stringify(vs)) runs.push({ vs, lines: [] });
 			runs.at(-1).lines.push(l.text);
+			const said = spoken(l.text, l.scope.lang);
+			if (said) runs.at(-1).lines.push(said); // the line's inline html, so it stays in the line's paragraph or list item
 		}
 		for (const { vs, lines } of runs.filter(r => r.lines.some(l => l.trim() !== ''))) { // a variant holding only responses frames nothing
 			const html = el('template', '', marked.parse(lines.join('\n'))).content;
@@ -236,6 +242,18 @@ function renderBar() {
 			render();
 		});
 		const label = el('label', 'dim', 'language ');
+		label.append(select);
+		bar.append(label);
+	}
+	if (graph.transcriptions?.entries.length) {
+		const select = el('select');
+		for (const v of ['off', 'on']) select.append(new Option(v, v, false, sel.transcribe === (v === 'on')));
+		select.addEventListener('change', () => {
+			sel.transcribe = select.value === 'on';
+			render();
+		});
+		const label = el('label', 'dim', 'transcription ');
+		label.title = 'IPA under the lines of language blocks transcribed since their last change';
 		label.append(select);
 		bar.append(label);
 	}

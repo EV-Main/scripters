@@ -40,17 +40,38 @@ enum Command {
 		script: Script,
 	},
 	/// fill the `--to` language from the `--from` one, one bit of prose per LLM call, in place; changes to existing `--to` blocks go through `cargo insta review`
+	#[command(args_conflicts_with_subcommands = true, arg_required_else_help = true)]
 	Translate {
+		#[command(subcommand)]
+		command: Option<TranslateCommand>,
+		#[command(flatten)]
+		fill: Option<Fill>,
+	},
+}
+
+#[derive(Subcommand)]
+enum TranslateCommand {
+	/// cache espeak-ng's IPA of each `<LANGS>` block changed since its last transcription at the bottom of the md, in place; the page can show it under the lines
+	Transcribe {
 		#[command(flatten)]
 		script: Script,
-		#[arg(long)]
-		from: String,
-		#[arg(long)]
-		to: String,
-		/// ask_llm's model tier
-		#[arg(long, default_value = "translate")]
-		quality: ask_llm::Model,
+		/// comma-separated language codes, each an espeak-ng voice
+		#[arg(value_delimiter = ',', required = true)]
+		langs: Vec<String>,
 	},
+}
+
+#[derive(Args)]
+struct Fill {
+	#[command(flatten)]
+	script: Script,
+	#[arg(long)]
+	from: String,
+	#[arg(long)]
+	to: String,
+	/// ask_llm's model tier
+	#[arg(long, default_value = "translate")]
+	quality: ask_llm::Model,
 }
 
 #[derive(Args)]
@@ -100,7 +121,15 @@ fn main() -> Result<()> {
 			Ok(())
 		}
 		Command::Watch { script } => watch(&script, &page),
-		Command::Translate { script, from, to, quality } => translate(&script, &from, &to, quality),
+		Command::Translate {
+			command: Some(TranslateCommand::Transcribe { script, langs }),
+			fill: None,
+		} => transcribe(&script, &langs),
+		Command::Translate {
+			command: None,
+			fill: Some(Fill { script, from, to, quality }),
+		} => translate(&script, &from, &to, quality),
+		Command::Translate { .. } => unreachable!("clap: args conflict with subcommands, and some are required"),
 	}
 }
 
@@ -150,6 +179,54 @@ fn translate(script: &Script, from: &str, to: &str, quality: ask_llm::Model) -> 
 	};
 	let out = out["md"].as_str().expect("apply returns {md, conflicts: []}");
 	std::fs::write(&script.md, out).wrap_err_with(|| format!("writing {}", script.md.display()))
+}
+
+fn transcribe(script: &Script, langs: &[String]) -> Result<()> {
+	let md = script.read()?;
+	let format = Format::try_new()?;
+	let todo: serde_json::Map<String, serde_json::Value> = serde_json::from_value(format.call("untranscribed", serde_json::json!([md, langs]))?)?;
+	let mut ipa = serde_json::Map::new();
+	for (lang, lines) in todo {
+		let lines = lines.as_object().expect("untranscribed returns {lang → {line → prose}}");
+		eprintln!("transcribing {} `{lang}` lines", lines.len());
+		let mut out = serde_json::Map::new();
+		for (line, prose) in lines {
+			out.insert(line.clone(), espeak(&lang, prose.as_str().expect("prose is a string"))?.into());
+		}
+		ipa.insert(lang, out.into());
+	}
+	let out = format.call("transcribe", serde_json::json!([md, langs, ipa]))?;
+	std::fs::write(&script.md, out.as_str().expect("transcribe returns the md")).wrap_err_with(|| format!("writing {}", script.md.display()))
+}
+
+/// espeak-ng puts each clause of `text` on its own line; they are joined into one
+fn espeak(voice: &str, text: &str) -> Result<String> {
+	use std::{io::Write as _, process::Stdio};
+	let mut child = std::process::Command::new("espeak-ng")
+		.args(["-q", "--ipa", "-v", voice])
+		.stdin(Stdio::piped())
+		.stdout(Stdio::piped())
+		.stderr(Stdio::piped())
+		.spawn()
+		.wrap_err("running espeak-ng; is it installed?")?;
+	child.stdin.take().expect("piped above").write_all(text.as_bytes()).wrap_err("writing to espeak-ng")?;
+	let out = child.wait_with_output().wrap_err("waiting for espeak-ng")?;
+	if !out.status.success() {
+		bail!("`espeak-ng -v {voice}` exited with {}: {}", out.status, String::from_utf8_lossy(&out.stderr).trim());
+	}
+	let mut raw = String::from_utf8(out.stdout).wrap_err("espeak-ng wrote non-utf8")?;
+	// `(en)…(ru)`: where espeak-ng switches to another voice's rules for a foreign word
+	while let Some((i, len)) = raw.match_indices('(').find_map(|(i, _)| {
+		let close = raw[i..].find(')')?;
+		(close > 1 && raw[i + 1..i + close].bytes().all(|b| b.is_ascii_lowercase() || b == b'-')).then_some((i, close + 1))
+	}) {
+		raw.replace_range(i..i + len, "");
+	}
+	let ipa = raw.split_whitespace().collect::<Vec<_>>().join(" ");
+	if ipa.is_empty() {
+		bail!("espeak-ng -v {voice} read nothing of {text:?}");
+	}
+	Ok(ipa)
 }
 
 /// Each conflict becomes a pending snapshot of a throwaway crate, so `cargo insta review` shows the old block against the new one; the accepted ones are returned.

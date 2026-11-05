@@ -636,3 +636,28 @@ test('a response scoped to a variant and a language needs both chosen to agree',
 	checkVisible(md, { lang: 'en', variants: { k: 'v' } }, ['a']);
 	checkVisible(md, { lang: 'ru', variants: { k: 'w' } }, ['a']);
 });
+
+test('a transcriptions block ends the section before it and holds one json line per transcribed block', () => {
+	checkParse(
+		`
+		# A
+		Hi
+		<details><summary>transcriptions</summary>
+
+		{"lang":"en","hash":"1","ipa":{"Hi":"haɪ"}}
+		{"lang":"en","hash":"1","ipa":{}}
+		not json
+		{"lang":"en","hash":"2","ipa":{"Hi":1}}
+		</details>
+		<details><summary>transcriptions</summary>
+		`,
+		`
+		node a "A" body="Hi"
+		error L6: a second \`en\` transcription of one block
+		error L7: a transcription is a {"lang", "hash", "ipa": {text → ipa}} json line
+		error L8: a transcription is a {"lang", "hash", "ipa": {text → ipa}} json line
+		error L10: a second transcriptions block
+		error L10: transcriptions block not closed
+		`,
+	);
+});

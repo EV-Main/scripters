@@ -359,6 +359,12 @@ input {
 	border-left: 3px solid var(--line);
 	color: var(--muted);
 }
+.ipa {
+	display: block;
+	font-size: 0.85em;
+	font-weight: normal;
+	color: var(--muted);
+}
 .body .variant {
 	margin: 0.5rem 0;
 	padding: 0.4rem 0.6rem;

@@ -59,6 +59,11 @@
 
               doCheck = false; # the integration tests drive a chromium, absent in the sandbox
 
+              nativeBuildInputs = [ pkgs.makeWrapper ];
+              postInstall = ''
+                wrapProgram $out/bin/${pname} --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.espeak-ng ]}
+              '';
+
               cargoLock.lockFile = ./Cargo.lock;
               src = pkgs.lib.cleanSource ./.;
             };
@@ -107,6 +112,7 @@
               pkg-config
               rust
               nodejs
+              espeak-ng
             ] ++ pre-commit-check.enabledPackages ++ combined.enabledPackages;
 
             env.RUST_BACKTRACE = 1;
