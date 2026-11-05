@@ -91,7 +91,7 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 - An existing `to` block the translation would change is shown by `cargo insta review`: accepted ones are overwritten, the rest stay. The md is written once, at the end, and only if every call answered and the result parses.
 
 ### Transcriptions
-`scripters translate transcribe <md> <code>,<code>…` caches espeak-ng's IPA of the named languages' blocks in the md, in place.
+`scripters translate transcribe <md> --langs <code>,<code>…` caches espeak-ng's IPA of the named languages' blocks in the md, in place.
 - A block is one `<div lang>` scope of a section, keyed by its language and a digest of its text from `<div` to `</div>`: editing it leaves it untranscribed.
 - Its body lines and title, outside code fences, are read one at a time, with markdown, list, quote and heading markers dropped; a line with no letters is not read. Responses are not read.
 - The cache is a block `<details><summary>transcriptions</summary>` … `</details>` outside every scope; it ends the section before it. Each non-blank line in it is the json `{"lang", "hash", "ipa": {line → ipa}}` of one block. A second one, a line of another shape, or two for one language and digest is an error.

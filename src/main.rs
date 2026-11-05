@@ -51,12 +51,12 @@ enum Command {
 
 #[derive(Subcommand)]
 enum TranslateCommand {
-	/// cache espeak-ng's IPA of each `<LANGS>` block changed since its last transcription at the bottom of the md, in place; the page can show it under the lines
+	/// cache espeak-ng's IPA of each `--langs` block changed since its last transcription at the bottom of the md, in place; the page can show it under the lines
 	Transcribe {
 		#[command(flatten)]
 		script: Script,
 		/// comma-separated language codes, each an espeak-ng voice
-		#[arg(value_delimiter = ',', required = true)]
+		#[arg(long, value_delimiter = ',', required = true)]
 		langs: Vec<String>,
 	},
 }
