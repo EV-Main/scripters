@@ -179,7 +179,7 @@ test('parse errors', () => {
 		error L2: duplicate of line 1: same slot
 		`,
 	);
-	checkParse('', 'error L1: no headings');
+	checkParse('', '');
 });
 
 test('labels are defined before the first heading and attached with `.name`', () => {

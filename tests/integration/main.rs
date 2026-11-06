@@ -278,6 +278,31 @@ fn new_card_opens_its_editor() {
 	);
 }
 
+#[test]
+fn new_creates_a_missing_md_and_keeps_an_existing_one() {
+	let temp = single_file("kept.scr.md", "# Kept\n").write_to_tempdir_with_prefix("scripters_new_");
+	let run = |md: &str| {
+		let out = Command::new(env!("CARGO_BIN_EXE_scripters"))
+			.args(["--new", "build"])
+			.arg(temp.path(md))
+			.arg("-o")
+			.arg(temp.path("out.html"))
+			.output()
+			.unwrap();
+		assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+	};
+	run("fresh.scr.md");
+	assert_eq!(temp.read("fresh.scr.md"), "");
+	run("kept.scr.md");
+	assert_eq!(temp.read("kept.scr.md"), "# Kept\n");
+}
+
+#[test]
+fn an_empty_script_offers_its_first_card() {
+	let write = "document.querySelector('#canvas button.first').click(); const ta = document.querySelector('#canvas textarea'); ta.value = '# A\\nHi'; ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));";
+	check_save(&[], "", write, "[layout=\"dfs\"]: #\n\n---\n\n# A\nHi\n");
+}
+
 /// The page `watch` serves for `md` runs the async `drive`, which `press(key, modifiers)` and `sleep(ms)` help; then the md on disk must be `expected`
 #[track_caller]
 fn check_watch(md: &str, drive: &str, expected: &str) {

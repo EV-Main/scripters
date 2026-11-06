@@ -35,6 +35,7 @@ nix profile install github:ev-main/scripters # substituted from valeratrades.cac
 ```sh
 scripters build script.scr.md --direction vertical   # or horizontal; writes /tmp/scripters/script.html (-o to override); -l dfs ranks each card below its latest caller instead of its earliest
 scripters watch script.scr.md   # serves it on localhost and opens it; the page reloads on each save of the md, its Ctrl+S writes the md
+scripters --new watch script.scr.md   # the same, starting from an empty script if the md does not exist yet (`build` takes it too)
 scripters translate script.scr.md --from en --to es   # fills the `es` blocks from the `en` ones with an LLM (--quality fast|medium|slow|…); changes to existing ones go through `cargo insta review`
 scripters translate regenerate-all script.scr.md --from-lang en   # the same for every other language of the md (or --langs es,de), with one review across them
 scripters translate transcribe script.scr.md --langs en,es   # caches espeak-ng's IPA of the `en` and `es` blocks changed since their last one; the page shows a line's on hovering it

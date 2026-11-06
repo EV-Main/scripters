@@ -159,7 +159,6 @@ function parse(md) {
 	if (transcriptions?.end === null) errors.push({ line: md.slice(0, transcriptions.start).split('\n').length, msg: 'transcriptions block not closed' });
 	for (const b of nodes.flatMap(n => n.langs)) b.ipa = transcriptions?.entries.find(e => e.lang === b.lang && e.hash === b.hash)?.ipa ?? null;
 	if (node) node.end = md.length;
-	if (nodes.length === 0 && errors.length === 0) errors.push({ line: 1, msg: 'no headings' });
 
 	const byId = new Map();
 	for (const n of nodes) {

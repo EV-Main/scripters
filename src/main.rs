@@ -20,6 +20,9 @@ struct Cli {
 	command: Command,
 	#[command(flatten)]
 	page: Page,
+	/// `build` and `watch` start a missing md as an empty script
+	#[arg(long, global = true)]
+	new: bool,
 }
 
 #[derive(Subcommand)]
@@ -109,6 +112,13 @@ impl Script {
 		Ok(stem.trim_suffix(".scr").to_owned())
 	}
 
+	fn create(&self) -> Result<()> {
+		match std::fs::File::create_new(&self.md) {
+			Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+			r => r.map(drop).wrap_err_with(|| format!("creating {}", self.md.display())),
+		}
+	}
+
 	fn read(&self) -> Result<String> {
 		std::fs::read_to_string(&self.md).wrap_err_with(|| format!("reading {}", self.md.display()))
 	}
@@ -116,7 +126,12 @@ impl Script {
 
 fn main() -> Result<()> {
 	color_eyre::install()?;
-	let Cli { command, page } = Cli::parse();
+	let Cli { command, page, new } = Cli::parse();
+	match &command {
+		Command::Build { script, .. } | Command::Watch { script } if new => script.create()?,
+		Command::Translate { .. } if new => bail!("--new applies to `build` and `watch` alone"),
+		_ => {}
+	}
 	match command {
 		Command::Build { script, o, open } => {
 			let title = script.title()?;

@@ -78,6 +78,14 @@ function render() {
 		canvas.style.width = canvas.style.height = '';
 		return;
 	}
+	if (!graph.nodes.length) {
+		const first = el('button', 'first', '+');
+		first.title = 'new card\n[N]';
+		first.addEventListener('click', create);
+		canvas.append(first);
+		canvas.style.width = canvas.style.height = '';
+		return;
+	}
 
 	const shown = visible(graph, sel);
 	const nodes = graph.nodes.filter(n => shown.has(n.id));
@@ -658,7 +666,7 @@ function create() {
 	let i = 1;
 	while (graph.nodes.some(n => n.id === `new-card${i > 1 ? `-${i}` : ''}`)) i++; // the slot of the title below
 	const title = `New card${i > 1 ? ` ${i}` : ''}`;
-	const failed = commit(splice([{ start: md.length, end: md.length, text: `${md.endsWith('\n') ? '' : '\n'}\n# ${title}\n` }]));
+	const failed = commit(splice([{ start: md.length, end: md.length, text: `${md === '' ? '' : md.endsWith('\n') ? '\n' : '\n\n'}# ${title}\n` }]));
 	assert(!failed, `appending "${title}" broke the document: ${failed?.map(e => e.msg).join('; ')}`);
 	const n = graph.nodes.find(n => n.title === title);
 	edit(n);

@@ -122,6 +122,7 @@ Every response leads one rank or more down, except one in each loop, which point
 - Under `watch`, a change of the md on disk is an edit too: the page's unsaved edits merge into it by lines. Where both change the same lines, or the merge has errors, the page shows the disk's md and undo brings its edits back. An open card editor holds the change off until it closes.
 - Ctrl+S in a card editor commits it first.
 - New card (⊞, `N`) appends `# New card` to the md, numbered past any slot it would collide with, and opens its editor.
+- A script with no cards shows a circled + in the middle of the page that does the same; `--new` starts `build` and `watch` on such an empty md when it does not exist yet.
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside any scope, or at the end of its section if it has none.
 
 ### Selection
