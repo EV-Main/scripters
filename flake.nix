@@ -55,7 +55,7 @@
               inherit pname;
               version = manifest.version;
 
-              RUSTC_WRAPPER = ""; # .cargo/config.toml sets sccache, absent in the sandbox
+              RUSTC_WRAPPER = ""; # .cargo/config.toml sets kache, absent in the sandbox
 
               doCheck = false; # the integration tests drive a chromium, absent in the sandbox
 
