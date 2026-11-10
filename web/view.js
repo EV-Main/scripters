@@ -316,18 +316,18 @@ function renderBar() {
 	button('+', 'zoom in', ['+', '='], () => zoomTo(zoom * ZOOM_STEP, ...center()));
 	button('↶', 'undo an edit; Ctrl+Z too', ['u'], () => travel(undos, redos)).disabled = !undos.length;
 	button('↷', 'redo; Ctrl+Y, Ctrl+Shift+Z too', ['U'], () => travel(redos, undos)).disabled = !redos.length;
-	button(LOCK(sel.locked), 'lock against edits: no response anchors, label or delete buttons, nor double-click editing', ['L'], () => {
-		sel.locked = !sel.locked;
-		render();
-	}).classList.add('push', 'icon', ...(sel.locked ? ['on'] : []));
 	const add = button('+', 'new card', ['N'], create);
-	add.classList.add('add');
+	add.classList.add('push', 'add');
 	add.disabled = graph.errors.length > 0 || sel.locked;
 	button('Labels', 'define the labels cards carry', ['l'], () => {
 		renderLabels();
 		labelsDialog.showModal();
 	});
 	button('New call', 'clear the walked path; the view follows the call until Clear; `c` scrolls to the start first', ['c'], newCall).classList.toggle('on', sel.calling);
+	button(LOCK(sel.locked), 'lock against edits: no response anchors, label or delete buttons, nor double-click editing', ['L'], () => {
+		sel.locked = !sel.locked;
+		render();
+	}).classList.add('icon', ...(sel.locked ? ['on'] : []));
 	button('Clear', 'clear the walked path and end the call', ['Escape'], () => {
 		sel.path = [];
 		sel.calling = false;
