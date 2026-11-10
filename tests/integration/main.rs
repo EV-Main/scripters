@@ -119,7 +119,8 @@ fn watch_serves_the_md_on_disk_and_writes_page_saves_back() {
 
 	let (status, page) = get("/");
 	assert_eq!(status, 200);
-	assert!(page.contains("# One") && page.contains("data-live="), "{page}");
+	assert!(page.contains("# One"), "{page}");
+	assert!(page.contains("data-live="), "{page}");
 	let v1 = get("/version").1;
 
 	std::fs::write(&md, "# Two\n").unwrap();
@@ -248,6 +249,25 @@ fn md_save_marks_the_layout_from_the_flag_or_the_bar() {
 	check_save(&["--layout", "bfs"], "[layout=\"dfs\"]: #\n\n---\n\n# A\n", "", bfs);
 	let pick = "const s = [...document.querySelectorAll('#bar label.dim')].find(l => l.firstChild.textContent.trim() === 'layout').querySelector('select'); s.value = 'bfs'; s.dispatchEvent(new Event('change'));";
 	check_save(&[], "# A\n", pick, bfs);
+}
+
+#[test]
+fn a_locked_page_edits_nothing() {
+	let md = "[layout=\"dfs\"]: #\n\n---\n\n# A\n";
+	let drive = "window.confirm = () => true;
+const press = key => document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+const card = () => document.querySelector('#canvas .card');
+press('L');
+card().click();
+card().click();
+const ta = document.querySelector('#canvas textarea');
+if (ta) {
+	ta.value = '# B';
+	ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }));
+}
+press('Backspace');
+press('N');";
+	check_save(&[], md, drive, md);
 }
 
 #[test]

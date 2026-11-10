@@ -108,6 +108,14 @@ input {
 #bar .push {
 	margin-left: auto;
 }
+#bar .icon svg {
+	width: 1em;
+	height: 1lh; /* as tall as the text buttons */
+	vertical-align: top;
+}
+#canvas.locked .card :is(.connect, .delete, .add, .unlabel) {
+	display: none;
+}
 #bar .repo {
 	display: flex;
 	color: var(--muted);
@@ -321,7 +329,8 @@ input {
 .pill .unlabel:hover {
 	opacity: 1;
 }
-.add {
+.add,
+#bar .add {
 	appearance: none;
 	width: 1.6rem;
 	text-align-last: center;
@@ -334,7 +343,8 @@ input {
 	border-radius: 999px;
 	cursor: pointer;
 }
-.add:hover {
+.add:hover,
+#bar .add:hover {
 	color: var(--ink);
 	border-color: var(--muted);
 }

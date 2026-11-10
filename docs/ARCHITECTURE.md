@@ -121,12 +121,13 @@ Every response leads one rank or more down, except one in each loop, which point
 - Undo (`u`, Ctrl+Z) and redo (`U`, Ctrl+Y, Ctrl+Shift+Z) step through this page's edits; the history lives in page memory, not the md.
 - Under `watch`, a change of the md on disk is an edit too: the page's unsaved edits merge into it by lines. Where both change the same lines, or the merge has errors, the page shows the disk's md and undo brings its edits back. An open card editor holds the change off until it closes.
 - Ctrl+S in a card editor commits it first.
-- New card (⊞, `N`) appends `# New card` to the md, numbered past any slot it would collide with, and opens its editor.
+- New card (+, `N`) appends `# New card` to the md, numbered past any slot it would collide with, and opens its editor.
+- Lock (`L`) refuses every edit but undo and redo: cards lose their handle and their label and delete buttons, double-click edits nothing, New card and Backspace do nothing. It is part of the selection.
 - A script with no cards shows a circled + in the middle of the page that does the same; `--new` starts `build` and `watch` on such an empty md when it does not exist yet.
 - Dragging a card's handle onto another card adds the response `- [TODO](#slot)` into that card's slot, after the dragged card's last response outside any scope, or at the end of its section if it has none.
 
 ### Selection
-`{ variants: {dim → value}, lang, layout, path: [nodeId], calling: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
+`{ variants: {dim → value}, lang, layout, path: [nodeId], calling: bool, locked: bool }`, kept in `sessionStorage`; a new tab starts from the md's marks. A dim without a value is not chosen yet and admits every variant.
 
 - A node is **visible** iff it agrees with the selection and is reachable from the root or a stray along responses and nodes that agree with it.
 - Cards show only the lines that agree with the selection. Lines and responses of a dimension with no value chosen show framed with their variant. Unlike variants, a language is always chosen while the document has any.
