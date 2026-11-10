@@ -59,6 +59,8 @@ doc_lazy_continuation = "allow"     # tries to make me add a newline after a lis
 get_first = "allow"
 get_last_with_len = "allow"
 manual_is_multiple_of = "allow"
+if_not_else = "warn"
+integer_division = "warn"
 
 [lints.cargo]
 non_kebab_case_bins = "allow"
