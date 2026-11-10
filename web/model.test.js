@@ -10,7 +10,7 @@ function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
 		...graph.marks.map(m => (m.dim ? `mark ${m.dim}=${m.value}` : `mark ${m.setting}="${m.value}"`)),
-		...graph.nodes.map(n => scoped(n.scope, `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`)),
+		...graph.nodes.map(n => scoped(n.scope, `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')}${n.times.length ? ` times=${n.times.map(t => scoped(t.scope, t.min)).join(',')}` : ''} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`)),
 		...graph.edges.map(e => scoped(e.scope, `edge ${e.from} -[${e.label}]-> ${e.to}`)),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
@@ -499,6 +499,48 @@ test('an inline variant scope splits its line into one per combination of values
 		dim k: v w
 		dim j: x y
 		error L6: \`<div k>\` inside another
+		`,
+	);
+});
+
+test('a time line leaves the body for its card, in the scopes around it', () => {
+	checkParse(
+		`
+		# A
+		⏱ 2.5 min
+		Hi
+		- [x](#b)
+		# B
+		<div k="v">
+		⏱ 1 min
+		</div>
+		<div k="w">⏱ 3 min</div><div k="u">⏱ 0.5 min</div>
+		\`\`\`
+		⏱ 4 min
+		\`\`\`
+		`,
+		`
+		node a "A" times=2.5 body="Hi"
+		node b "B" times={k=v}1,{k=w}3,{k=u}0.5 body="\`\`\`\\n⏱ 4 min\\n\`\`\`"
+		edge a -[x]-> b
+		dim k: u v w
+		`,
+	);
+});
+
+test('a card has one time per selection', () => {
+	checkParse(
+		`
+		# A
+		⏱ 1 min
+		<div k="v">
+		⏱ 2 min
+		</div>
+		`,
+		`
+		node a "A" times=1,{k=v}2 body=""
+		dim k: v
+		error L4: a second time for one card
 		`,
 	);
 });

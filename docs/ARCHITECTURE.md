@@ -82,8 +82,13 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 - Languages are the union of the language codes, in order of first appearance; dimensions and their values are the union of the variant scopes. Nothing is declared.
 - A heading inside language scopes alone is the card's title in that language. It starts no node: slot and labels come from the main heading alone. A second title for one language in a section, a `{…}` block on it, or a heading inside a variant scope is an error.
 
+### Times
+- A body line `⏱ <minutes> min` outside code fences is the card's **time**: removed from the body, drawn on the card. In variant scopes, block or inline, variants time differently (`<div scope="talk">⏱ 1.5 min</div>`).
+- Two times of one card that some selection agrees with both are an error.
+- Once any card has a time, every shown card shows the times agreeing with the selection, or `⏱ ?`; the first shown card ends with the total of the shown cards' times. Anything but exactly one time on a card, and the total while any card has that, are in warning color.
+
 ### Translating
-`scripters translate <md> --from <code> --to <code>` fills one language from another. Only prose reaches the LLM, one bit per call, each distinct text once: a title, a line, or a response's label; indent, quote and list markers, `<div>` lines, slots and fenced code are copied around it.
+`scripters translate <md> --from <code> --to <code>` fills one language from another. Only prose reaches the LLM, one bit per call, each distinct text once: a title, a line, or a response's label; indent, quote and list markers, `<div>` lines, times, slots and fenced code are copied around it.
 - A section with no language scope is wrapped whole in `<div lang="from">`.
 - Each `from` block gets a `to` sibling right after it: the same lines translated, a line wrapped onto the next joined into one, and, for the section's first block outside any variant that holds no heading, the main title one level down as its title.
 - `from` and `to` blocks pair up in order within the same enclosing variants. A section with languages but no `from` block in some variants, or a count of `to` blocks other than none or as many, is an error.
@@ -94,7 +99,7 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 ### Transcriptions
 `scripters translate transcribe <md> --langs <code>,<code>…` caches espeak-ng's IPA of each line of the named languages' blocks in the md, in place.
 - A block is one `<div lang>` scope of a section, keyed by its language and a digest of its text from `<div` to `</div>`: editing it leaves it untranscribed.
-- Its body lines and title, outside code fences, are read one at a time, with markdown, list, quote and heading markers dropped; a line with no letters is not read, nor are responses. A line split by inline scopes is read once per combination.
+- Its body lines and title, outside code fences, are read one at a time, with markdown, list, quote and heading markers dropped; a line with no letters is not read, nor are responses or times. A line split by inline scopes is read once per combination.
 - The cache is a block `<details><summary>transcriptions</summary>` … `</details>` outside every scope; it ends the section before it. Each non-blank line in it is the json `{"lang", "hash", "ipa"}` of one block, `ipa` holding per line after its `<div lang>` the IPA, null, or for a split line an array of those per combination. A second cache, a line of another shape, or two for one language and digest is an error.
 - Only blocks without a transcription of their text are read. The cache is rewritten at the bottom, in md order, keeping one entry per current block: an edited or deleted block's goes.
 - On the page, hovering a line or title of a block with a transcription of its text shows the line's IPA.

@@ -5,6 +5,7 @@ const INLINE = /<div ([\w-]+)="([\w-]+)">(.*?)<\/div>/g;
 // var: web/translate.js imports these with `var`, and the CLI evaluates both in one scope
 var TRANSCRIPTIONS = '<details><summary>transcriptions</summary>';
 var PREFIX = /^\s*((?:>\s*)*)([-*+]\s+|\d+[.)]\s+|#{1,6}\s+)?/; // a line's quote, list and heading markers
+var TIME = /^ {0,3}⏱[ \t]*(\d+(?:\.\d+)?)[ \t]*min[ \t]*$/;
 
 function parse(md) {
 	const nodes = [];
@@ -143,13 +144,17 @@ function parse(md) {
 				const lang = scopes.find(s => s.key === 'lang')?.lang ?? null;
 				combos.forEach((c, combo) => {
 					const l = { text: line.text.replace(INLINE, (_, key, value, text) => (c[key] === value ? text : '')), scope: { ...scope(false), ...c }, line: lineNo, lang, combo };
+					const t = TIME.exec(l.text);
+					if (t) return node.times.push({ min: Number(t[1]), scope: l.scope, line: lineNo });
 					node.body.push(l);
 					lang?.reads.push(l);
 				});
 				return;
 			}
 		}
-		if (node) {
+		const t = !fence && TIME.exec(line.text);
+		if (t && node) node.times.push({ min: Number(t[1]), scope: scope(false), line: lineNo });
+		else if (node) {
 			const l = { text: line.text, scope: scope(false), line: lineNo, lang: scopes.find(s => s.key === 'lang')?.lang ?? null, combo: null };
 			node.body.push(l);
 			if (!fence && !f) l.lang?.reads.push(l); // code is not read aloud
@@ -167,10 +172,12 @@ function parse(md) {
 		else byId.set(n.id, n);
 	}
 
+	const agree = (a, b) => Object.entries(a.scope).every(([k, v]) => (b.scope[k] ?? v) === v); // some selection admits both
 	const edges = [];
 	for (const n of nodes) {
+		n.times.forEach((t, i) => n.times.slice(0, i).some(o => agree(o, t)) && errors.push({ line: t.line, msg: 'a second time for one card' }));
 		for (const r of n.responses) {
-			if (r.label.trim() === '' && n.responses.some(o => o !== r && Object.entries(o.scope).every(([k, v]) => (r.scope[k] ?? v) === v))) errors.push({ line: r.line, msg: "an unlabeled response must be its card's only one" });
+			if (r.label.trim() === '' && n.responses.some(o => o !== r && agree(o, r))) errors.push({ line: r.line, msg: "an unlabeled response must be its card's only one" });
 			if (!byId.has(r.slot)) {
 				errors.push({ line: r.line, msg: `response links to unknown slot #${r.slot}` });
 				continue;
@@ -219,7 +226,7 @@ function heading(raw, at, start, line, errors) {
 	if (title === '') errors.push({ line, msg: 'empty heading' });
 	// github's anchor slug, so slot links also resolve when the md is viewed there
 	const id = title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
-	return { id, title, titles: {}, langs: [], labels, attrs, line, start, end: null, body: [], responses: [], stray: false };
+	return { id, title, titles: {}, langs: [], labels, attrs, line, start, end: null, body: [], times: [], responses: [], stray: false };
 }
 
 // cyrb53: keys a block's transcription to its text
@@ -258,4 +265,4 @@ function inScope(item, selection) {
 	return Object.entries(item.scope).every(([k, v]) => ((k === 'lang' ? selection.lang : selection.variants?.[k]) ?? v) === v);
 }
 
-if (typeof module !== 'undefined') module.exports = { LAYOUTS, TRANSCRIPTIONS, PREFIX, parse, visible, inScope };
+if (typeof module !== 'undefined') module.exports = { LAYOUTS, TRANSCRIPTIONS, PREFIX, TIME, parse, visible, inScope };

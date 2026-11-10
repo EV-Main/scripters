@@ -224,6 +224,31 @@ test('variants inside a wrapped section are copied; languages inside variants pa
 	);
 });
 
+test('a time line is copied, not translated', () => {
+	check(
+		`
+		# A
+		⏱ 2 min
+		Hi
+		`,
+		{},
+		`
+		# A
+		<div lang="en">
+
+		⏱ 2 min
+		Hi
+		</div>
+		<div lang="es">
+
+		## <A>
+		⏱ 2 min
+		<Hi>
+		</div>
+		`,
+	);
+});
+
 test('fenced code is copied as is', () => {
 	check(
 		`

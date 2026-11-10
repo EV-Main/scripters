@@ -98,6 +98,8 @@ function render() {
 	const hue = e => (graph.nodes.findIndex(n => n.id === e.to) * 110) % 360; // by target node: 36 hues before repeating, 110° apart so consecutive nodes differ
 	const pending = scope => Object.entries(scope).filter(([k]) => k !== 'lang' && !(k in sel.variants)); // its variants not chosen yet
 	const chips = vs => vs.map(([k, v]) => el('span', 'chip', `${k}=${v}`));
+	const timed = graph.nodes.some(n => n.times.length);
+	let [total, untimed] = [0, false];
 
 	const said = (block, line, combo) => {
 		const ipa = block?.ipa?.[line - block.line - 1];
@@ -123,6 +125,12 @@ function render() {
 			head.append(p);
 		}
 		head.append(labelPicker(n));
+		if (timed) {
+			const ts = n.times.filter(t => inScope(t, sel));
+			if (ts.length === 1) total += ts[0].min;
+			else untimed = true;
+			head.append(el('span', ts.length === 1 ? 'time' : 'time unknown', ts.length ? `⏱ ${ts.map(t => t.min).join('/')} min` : '⏱ ?'));
+		}
 		const title = el('h2', '', marked.parseInline(n.titles[sel.lang] ?? n.title));
 		const titled = n.langs.find(b => b.lang === sel.lang && b.title !== null);
 		if (titled && said(titled, titled.title, null)) {
@@ -175,6 +183,7 @@ function render() {
 		canvas.append(card);
 		cards.set(n.id, card);
 	}
+	if (timed) cards.get(nodes[0].id).append(el('footer', untimed ? 'total unknown' : 'total', `total ⏱ ${Math.round(total * 10) / 10} min`)); // before layout, so the card's size holds it
 	const labels = edges.map(e => {
 		if (e.label.trim() === '') return null; // walked by clicking the card it leads to
 		const label = el('button', 'label', marked.parseInline(e.label));

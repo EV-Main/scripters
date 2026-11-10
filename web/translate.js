@@ -1,6 +1,6 @@
 // Fills languages of a script from another, one bit of prose at a time, and caches transcriptions: docs/ARCHITECTURE.md#translating
 
-if (typeof module !== 'undefined') var { TRANSCRIPTIONS, PREFIX, parse } = require('./model.js');
+if (typeof module !== 'undefined') var { TRANSCRIPTIONS, PREFIX, TIME, parse } = require('./model.js');
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 const SCOPE = /^ {0,3}(?:<div [\w-]+="[\w-]+">|<\/div>)[ \t]*$/;
@@ -10,7 +10,7 @@ const RESPONSE = /^( {0,3}(?:[-*+]|\d+[.)])[ \t]+\[)([^\]]*)(\]\(#[^)\s]+\)[ \t]
 
 const split = s => s.replace(/\r?\n$/, '').split(/\r?\n/);
 const depth = quote => quote.split('>').length;
-const verbatim = line => line.trim() === '' || SCOPE.test(line) || RULE.test(line);
+const verbatim = line => line.trim() === '' || SCOPE.test(line) || RULE.test(line) || TIME.test(line);
 
 // a block's lines: verbatim strings, and `{before, text, after}` whose `text` is translated
 function pieces(lines) {
