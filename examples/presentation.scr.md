@@ -11,7 +11,7 @@ The course asks whether Euler is valid. A quoter asks whether its numbers are pr
 
 Thesis: every stage of a quote is provably precise enough, and no implementation is ≥ 10× faster.
 
-<div scope="talk">⏱ 1.5 min</div>
+<div scope="talk"><time>1m 30s</time></div>
 <div scope="paper">every card below is a paper section</div>
 
 - [simplest scheme](#euler)
@@ -21,7 +21,7 @@ Explicit: yₙ₊₁ = yₙ + h·f(tₙ, yₙ). Implicit: yₙ₊₁ = yₙ + h�
 
 Figure: euler_sim on v' = κ(θ − v), the equation used throughout.
 
-⏱ 2.5 min
+<time>2m 30s</time>
 
 - [how wrong per step?](#local-error)
 - [how wrong for large h?](#stability)
@@ -32,7 +32,7 @@ Taylor: τ = O(h²) per step, so the scheme is consistent.
 
 Proof: inline, 3 lines.
 
-⏱ 0.5 min
+<time>30s</time>
 
 - [errors accumulate](#global-convergence)
 
@@ -41,7 +41,7 @@ Proof: inline, 3 lines.
 
 Proof: Lean [L3]; inline only the statement and the one-line idea.
 
-⏱ 2 min
+<time>2m</time>
 
 - [check the slopes](#convergence-experiment)
 - [O(h) has an expansion](#richardson)
@@ -49,7 +49,7 @@ Proof: Lean [L3]; inline only the statement and the one-line idea.
 # Convergence experiment {.fig}
 log–log error against h: explicit and implicit slope 1, Richardson slope 2.
 
-⏱ 1 min
+<time>1m</time>
 
 - [small h is not the whole story](#stability)
 
@@ -72,7 +72,7 @@ Stiff: |λ| large makes stability, not accuracy, bound the explicit h.
 
 Proof: inline, 2 lines. Lean [L4].
 
-⏱ 2.5 min
+<time>2m 30s</time>
 
 - [our ODE is y' = λy shifted, λ = −κ](#mean-reverting-variance)
 - [PDEs in space are stiff](#method-of-lines)
@@ -104,7 +104,7 @@ Explicit Euler stays ≥ 0 iff hκ ≤ 1; implicit always.
 
 Proof: inline, 1 line each. Lean [L4].
 
-⏱ 2.5 min
+<time>2m 30s</time>
 
 - [real variance is noisy](#stochastic-variance)
 - [what prices see is total variance](#total-variance-to-price)
@@ -118,7 +118,7 @@ Figure: same h, CIR paths cross 0, gamma-driven ones don't.
 
 Proof: gamma case inline (the ODE proof plus Δz ≥ 0). CIR: Lean [L12].
 
-⏱ 3 min
+<time>3m</time>
 
 - [what prices see is total variance](#total-variance-to-price)
 - [pricing by simulation](#monte-carlo-cost)
@@ -133,7 +133,7 @@ Weak order 1 plus s/√M sampling error ⇒ cost ~ ε⁻³ [L13]. Fourier pricin
 # Total variance to price
 w(T) = ∫₀ᵀ v dt feeds Black: C(F, K, w). The variance ODE produces a price; the quoter runs this backwards.
 
-⏱ 1 min
+<time>1m</time>
 
 - [market gives prices, we need σ](#implied-volatility)
 - [how wrong is the price?](#option-price-error)
@@ -150,7 +150,7 @@ The implicit step solves g(z) = z − yₙ − h·f(tₙ₊₁, z) = 0.
 
 |eₖ₊₁| ≤ (M/2m)·eₖ²: correct bits double per step [L5].
 
-⏱ 2 min
+<time>2m</time>
 
 - [the same solver inverts Black](#implied-volatility)
 - [how few evaluations can any method use?](#oracle-lower-bound)
@@ -173,7 +173,7 @@ C(σ) strictly increasing within no-arbitrage bounds ⇒ unique σ [L6].
 
 Newton from σ_c = √(2|ln(F/K)|/T) converges monotonically [L7].
 
-⏱ 2.5 min
+<time>2m 30s</time>
 
 - [σ per strike → a surface](#calibration)
 - [each stage has an error](#error-chain-and-tick-sufficiency)
@@ -208,7 +208,7 @@ So each stage gets a precision target, past which effort is provably wasted.
 
 Proof: [L2] inline, 3 lines. [L1] Lean, induction sketched.
 
-⏱ 4 min
+<time>4m</time>
 
 - [precise enough; fast enough?](#limits-of-optimisation)
 
@@ -221,11 +221,11 @@ Figure: measured tick-to-quote split, and the IV solver latency distribution (p5
 
 Proof: Amdahl inline, 1 line.
 
-⏱ 3 min
+<time>3m</time>
 
 - [](#conclusion)
 
 # Conclusion
 Euler's validity questions (consistency, stability, positivity) come back as the quoter's: per-stage error budgets, and the Newton step.
 
-⏱ 1 min
+<time>1m</time>

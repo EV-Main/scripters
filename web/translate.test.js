@@ -224,11 +224,11 @@ test('variants inside a wrapped section are copied; languages inside variants pa
 	);
 });
 
-test('a time line is copied, not translated', () => {
+test('a `<time>` line is copied, not translated', () => {
 	check(
 		`
 		# A
-		⏱ 2 min
+		<time>2m</time>
 		Hi
 		`,
 		{},
@@ -236,13 +236,13 @@ test('a time line is copied, not translated', () => {
 		# A
 		<div lang="en">
 
-		⏱ 2 min
+		<time>2m</time>
 		Hi
 		</div>
 		<div lang="es">
 
 		## <A>
-		⏱ 2 min
+		<time>2m</time>
 		<Hi>
 		</div>
 		`,

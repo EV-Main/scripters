@@ -5,7 +5,8 @@ const INLINE = /<div ([\w-]+)="([\w-]+)">(.*?)<\/div>/g;
 // var: web/translate.js imports these with `var`, and the CLI evaluates both in one scope
 var TRANSCRIPTIONS = '<details><summary>transcriptions</summary>';
 var PREFIX = /^\s*((?:>\s*)*)([-*+]\s+|\d+[.)]\s+|#{1,6}\s+)?/; // a line's quote, list and heading markers
-var TIME = /^ {0,3}⏱[ \t]*(\d+(?:\.\d+)?)[ \t]*min[ \t]*$/;
+var TIME = /^ {0,3}<time>([^<]*)<\/time>[ \t]*$/;
+const DURATION = /^[ \t]*(?:(\d+)h)?[ \t]*(?:(\d+)m)?[ \t]*(?:(\d+(?:\.\d+)?)s)?[ \t]*$/; // html's duration components, ordered
 
 function parse(md) {
 	const nodes = [];
@@ -29,6 +30,11 @@ function parse(md) {
 	const scopes = []; // the open `<div k="v">`s, outermost first: {key, value, line, block}; a block one holds whole sections
 	const scope = block => Object.fromEntries(scopes.filter(s => s.block === block).map(s => [s.key, s.value]));
 	const inCard = () => scopes.some(s => !s.block);
+	const time = (text, scope, line) => {
+		const d = DURATION.exec(text);
+		if (!d || text.trim() === '') return errors.push({ line, msg: `\`${text}\` is not an html duration like \`1h 2m 30.5s\`` });
+		node.times.push({ secs: 3600 * Number(d[1] ?? 0) + 60 * Number(d[2] ?? 0) + Number(d[3] ?? 0), scope, line });
+	};
 	lines.forEach((line, i) => {
 		const lineNo = i + 1;
 		if (transcriptions?.end === null) {
@@ -145,7 +151,7 @@ function parse(md) {
 				combos.forEach((c, combo) => {
 					const l = { text: line.text.replace(INLINE, (_, key, value, text) => (c[key] === value ? text : '')), scope: { ...scope(false), ...c }, line: lineNo, lang, combo };
 					const t = TIME.exec(l.text);
-					if (t) return node.times.push({ min: Number(t[1]), scope: l.scope, line: lineNo });
+					if (t) return time(t[1], l.scope, lineNo);
 					node.body.push(l);
 					lang?.reads.push(l);
 				});
@@ -153,7 +159,7 @@ function parse(md) {
 			}
 		}
 		const t = !fence && TIME.exec(line.text);
-		if (t && node) node.times.push({ min: Number(t[1]), scope: scope(false), line: lineNo });
+		if (t && node) time(t[1], scope(false), lineNo);
 		else if (node) {
 			const l = { text: line.text, scope: scope(false), line: lineNo, lang: scopes.find(s => s.key === 'lang')?.lang ?? null, combo: null };
 			node.body.push(l);

@@ -10,7 +10,7 @@ function render(graph) {
 	return [
 		...graph.labels.map(l => `label ${l.name} ${l.color} ${JSON.stringify(l.description)}`),
 		...graph.marks.map(m => (m.dim ? `mark ${m.dim}=${m.value}` : `mark ${m.setting}="${m.value}"`)),
-		...graph.nodes.map(n => scoped(n.scope, `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')}${n.times.length ? ` times=${n.times.map(t => scoped(t.scope, t.min)).join(',')}` : ''} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`)),
+		...graph.nodes.map(n => scoped(n.scope, `node ${n.id} "${n.title}"${n.stray ? ' stray' : ''}${n.labels.map(l => ` .${l}`).join('')}${Object.entries(n.titles).map(([l, t]) => ` ${l}="${t}"`).join('')}${n.times.length ? ` times=${n.times.map(t => scoped(t.scope, t.secs)).join(',')}` : ''} body=${JSON.stringify(n.body.map(l => scoped(l.scope, l.text)).join('\n').trim())}`)),
 		...graph.edges.map(e => scoped(e.scope, `edge ${e.from} -[${e.label}]-> ${e.to}`)),
 		...(graph.langs.length ? [`langs: ${graph.langs.join(' ')}`] : []),
 		...Object.entries(graph.dims).map(([k, vs]) => `dim ${k}: ${vs.join(' ')}`),
@@ -503,43 +503,48 @@ test('an inline variant scope splits its line into one per combination of values
 	);
 });
 
-test('a time line leaves the body for its card, in the scopes around it', () => {
+test('a `<time>` line leaves the body for its card, in the scopes around it', () => {
 	checkParse(
 		`
 		# A
-		⏱ 2.5 min
+		<time>2m 30s</time>
 		Hi
 		- [x](#b)
 		# B
 		<div k="v">
-		⏱ 1 min
+		<time>1h 1m</time>
 		</div>
-		<div k="w">⏱ 3 min</div><div k="u">⏱ 0.5 min</div>
+		<div k="w"><time>3m</time></div><div k="u"><time>0.5s</time></div>
+		Said in <time>3m</time>.
 		\`\`\`
-		⏱ 4 min
+		<time>4m</time>
 		\`\`\`
 		`,
 		`
-		node a "A" times=2.5 body="Hi"
-		node b "B" times={k=v}1,{k=w}3,{k=u}0.5 body="\`\`\`\\n⏱ 4 min\\n\`\`\`"
+		node a "A" times=150 body="Hi"
+		node b "B" times={k=v}3660,{k=w}180,{k=u}0.5 body="Said in <time>3m</time>.\\n\`\`\`\\n<time>4m</time>\\n\`\`\`"
 		edge a -[x]-> b
 		dim k: u v w
 		`,
 	);
 });
 
-test('a card has one time per selection', () => {
+test('a card has one time per selection, an html duration', () => {
 	checkParse(
 		`
 		# A
-		⏱ 1 min
+		<time>1m</time>
 		<div k="v">
-		⏱ 2 min
+		<time>2m</time>
 		</div>
+		# B
+		<time>2.5 min</time>
 		`,
 		`
-		node a "A" times=1,{k=v}2 body=""
+		node a "A" times=60,{k=v}120 body=""
+		node b "B" body=""
 		dim k: v
+		error L7: \`2.5 min\` is not an html duration like \`1h 2m 30.5s\`
 		error L4: a second time for one card
 		`,
 	);

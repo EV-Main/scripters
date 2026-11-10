@@ -83,9 +83,9 @@ The md is embedded in a `<script>` block, so it cannot contain `<script` or `</s
 - A heading inside language scopes alone is the card's title in that language. It starts no node: slot and labels come from the main heading alone. A second title for one language in a section, a `{…}` block on it, or a heading inside a variant scope is an error.
 
 ### Times
-- A body line `⏱ <minutes> min` outside code fences is the card's **time**: removed from the body, drawn on the card. In variant scopes, block or inline, variants time differently (`<div scope="talk">⏱ 1.5 min</div>`).
+- A body line `<time>1h 2m 30.5s</time>` outside code fences (html's duration, each part optional) is the card's **time**: removed from the body, drawn on the card. In variant scopes, block or inline, variants time differently (`<div scope="talk"><time>1m 30s</time></div>`).
 - Two times of one card that some selection agrees with both are an error.
-- Once any card has a time, every shown card shows the times agreeing with the selection, or `⏱ ?`; the first shown card ends with the total of the shown cards' times. Anything but exactly one time on a card, and the total while any card has that, are in warning color.
+- Once any card has a time, every shown card shows the times agreeing with the selection, or `no time`; the first shown card ends with the total of the shown cards' times. Anything but exactly one time on a card, and the total while any card has that, are in warning color.
 
 ### Translating
 `scripters translate <md> --from <code> --to <code>` fills one language from another. Only prose reaches the LLM, one bit per call, each distinct text once: a title, a line, or a response's label; indent, quote and list markers, `<div>` lines, times, slots and fenced code are copied around it.

@@ -99,6 +99,7 @@ function render() {
 	const pending = scope => Object.entries(scope).filter(([k]) => k !== 'lang' && !(k in sel.variants)); // its variants not chosen yet
 	const chips = vs => vs.map(([k, v]) => el('span', 'chip', `${k}=${v}`));
 	const timed = graph.nodes.some(n => n.times.length);
+	const duration = s => [[Math.floor(s / 3600), 'h'], [Math.floor((s % 3600) / 60), 'm'], [Math.round((s % 60) * 10) / 10, 's']].filter(([n]) => n).map(([n, u]) => `${n}${u}`).join(' ') || '0s';
 	let [total, untimed] = [0, false];
 
 	const said = (block, line, combo) => {
@@ -127,9 +128,9 @@ function render() {
 		head.append(labelPicker(n));
 		if (timed) {
 			const ts = n.times.filter(t => inScope(t, sel));
-			if (ts.length === 1) total += ts[0].min;
+			if (ts.length === 1) total += ts[0].secs;
 			else untimed = true;
-			head.append(el('span', ts.length === 1 ? 'time' : 'time unknown', ts.length ? `⏱ ${ts.map(t => t.min).join('/')} min` : '⏱ ?'));
+			head.append(el('span', ts.length === 1 ? 'time' : 'time unknown', ts.length ? ts.map(t => duration(t.secs)).join(' / ') : 'no time'));
 		}
 		const title = el('h2', '', marked.parseInline(n.titles[sel.lang] ?? n.title));
 		const titled = n.langs.find(b => b.lang === sel.lang && b.title !== null);
@@ -183,7 +184,7 @@ function render() {
 		canvas.append(card);
 		cards.set(n.id, card);
 	}
-	if (timed) cards.get(nodes[0].id).append(el('footer', untimed ? 'total unknown' : 'total', `total ⏱ ${Math.round(total * 10) / 10} min`)); // before layout, so the card's size holds it
+	if (timed) cards.get(nodes[0].id).append(el('footer', untimed ? 'total unknown' : 'total', `total ${duration(total)}`)); // before layout, so the card's size holds it
 	const labels = edges.map(e => {
 		if (e.label.trim() === '') return null; // walked by clicking the card it leads to
 		const label = el('button', 'label', marked.parseInline(e.label));
