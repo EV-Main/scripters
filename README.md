@@ -1,21 +1,22 @@
 # scripters <img src="web/icon.svg" alt="" width="64">
-![Minimum Supported Rust Version](https://img.shields.io/badge/nightly-1.100+-ab6000.svg)
+![Minimum Supported Rust Version](https://img.shields.io/badge/nightly-2026--06--29+-ab6000.svg)
+![Newest Supported Nightly](https://img.shields.io/badge/nightly-2026--11--02-ab6000.svg)
 [<img alt="crates.io" src="https://img.shields.io/crates/v/scripters.svg?color=fc8d62&logo=rust" height="20" style=flat-square>](https://crates.io/crates/scripters)
 [<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-66c2a5?style=for-the-badge&labelColor=555555&logo=docs.rs&style=flat-square" height="20">](https://docs.rs/scripters)
 ![Lines Of Code](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valeratrades/b48e6f02c61942200e7d1e3eeabf9bcb/raw/scripters-loc.json)
 ![Build time](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valeratrades/b48e6f02c61942200e7d1e3eeabf9bcb/raw/scripters-build.json)
 ![Test time](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valeratrades/b48e6f02c61942200e7d1e3eeabf9bcb/raw/scripters-test.json)
 <br>
-[<img alt="ci errors" src="https://img.shields.io/github/actions/workflow/status/ev-main/scripters/errors.yml?branch=main&style=for-the-badge&style=flat-square&label=errors&labelColor=420d09" height="20">](https://github.com/ev-main/scripters/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
-[<img alt="ci warnings" src="https://img.shields.io/github/actions/workflow/status/ev-main/scripters/warnings.yml?branch=main&style=for-the-badge&style=flat-square&label=warnings&labelColor=d16002" height="20">](https://github.com/ev-main/scripters/actions?query=branch%3Amain) <!--NB: Won't find it if repo is private-->
+[![errors](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valeratrades/b48e6f02c61942200e7d1e3eeabf9bcb/raw/scripters-errors.json)](https://github.com/EV-Main/scripters/actions/workflows/errors.yml?query=branch%3Amain)
+[![warnings](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valeratrades/b48e6f02c61942200e7d1e3eeabf9bcb/raw/scripters-warnings.json)](https://github.com/EV-Main/scripters/actions/workflows/warnings.yml?query=branch%3Amain)
 
-🌐 **[Live demo](https://ev-main.github.io/scripters/)** — the demo script, built; no setup, runs in the browser.
+🌐 **[Live demo](https://EV-Main.github.io/scripters/)** — the demo script, built; no setup, runs in the browser.
 
 Turns a markdown sales call script into one self-contained HTML file: each `# ` section becomes a card, response links become edges, and the caller clicks through the conversation graph during a live call, picking A/B variants as they go. The file works offline, can be edited inline, and saves a new copy of itself.
 
 ![a call walked through the demo script](docs/.readme_assets/assets/walkthrough.webp)
 
-[`examples/demo.scr.md`](examples/demo.scr.md), walked: A/B variants picked in the top bar, responses clicked through to a booked call, then a card's markdown edited in place. For the real thing, [play with it](https://ev-main.github.io/scripters/).
+[`examples/demo.scr.md`](examples/demo.scr.md), walked: A/B variants picked in the top bar, responses clicked through to a booked call, then a card's markdown edited in place. For the real thing, [play with it](https://EV-Main.github.io/scripters/).
 // redraw it yourself: `nix run .#film`.
 <!-- markdownlint-disable -->
 <details>
@@ -50,7 +51,7 @@ Open the html in any browser. Click cards or responses to follow the call, pick 
 
 <br>
 
-<sup>Links for devs:</sup>
+#### Dev links
 - <sup><a href="./docs/ARCHITECTURE.md">architecture</a></sup>
 - <sup><a href="https://github.com/EV-Main/.github/blob/main/code/STYLE.md">style</a></sup>
 - <sup><a href="https://github.com/EV-Main/.github/tree/main/code/conventions">conventions</a></sup>
